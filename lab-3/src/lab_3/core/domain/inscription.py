@@ -16,12 +16,13 @@ class Inscription:
     def create(cls, 
                student_id:StudentId,
                cours_id:CoursId,
+               note:Note|None=None
               
     ) -> Inscription:
         obj = object.__new__(cls)
         object.__setattr__(obj, "student_id", student_id)
-        object.__setattr__(obj, "course_id", cours_id)
-       
+        object.__setattr__(obj, "cours_id", cours_id)
+        object.__setattr__(obj, "note", note)
         return obj
 
     @classmethod
@@ -34,7 +35,7 @@ class Inscription:
         obj = object.__new__(cls)
         object.__setattr__(obj, "id", id)
         object.__setattr__(obj, "student_id", student_id)
-        object.__setattr__(obj, "course_id", cours_id)
+        object.__setattr__(obj, "cours_id", cours_id)
         object.__setattr__(obj, "note", note)
         return obj
 
