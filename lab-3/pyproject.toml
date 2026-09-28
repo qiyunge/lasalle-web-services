@@ -1,0 +1,19 @@
+[project]
+name = "lab-3"
+version = "0.1.0"
+description = "lab3"
+readme = "README.md"
+authors = [
+    { name = "Grant Ge", email = "grantnj.ge@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.1.3",
+]
+
+[project.scripts]
+dev = "lab_3.main:dev"
+
+[build-system]
+requires = ["uv_build>=0.12.13,<0.13.0"]
+build-backend = "uv_build"
