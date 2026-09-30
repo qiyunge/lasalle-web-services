@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class ValidationError:
-    field:str
-    message:str
+    field: str
+    message: str
+
 
 @dataclass(frozen=True)
 class ValidationErrors:
@@ -11,4 +13,3 @@ class ValidationErrors:
 
     def __bool__(self) -> bool:
         return bool(self.errors)
-

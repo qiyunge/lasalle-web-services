@@ -1,5 +1,7 @@
-from typing import Protocol,Any
+from typing import Protocol
+
+from lab_3.core.application.command import Command
+
 
 class CommandBus(Protocol):
-    def dispatch(self, command: Any) -> Any:
-        ...
+    def dispatch[T](self, command: Command[T]) -> T: ...

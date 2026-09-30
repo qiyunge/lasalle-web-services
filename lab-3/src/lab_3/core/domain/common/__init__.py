@@ -1,11 +1,13 @@
-from .result import Success, Failure, Result, collect_errors
+from .build import build
+from .result import Failure, Result, Success, collect_errors
 from .validation import ValidationError, ValidationErrors
 
 __all__ = [
-    "Success",
     "Failure",
     "Result",
+    "Success",
     "ValidationError",
     "ValidationErrors",
+    "build",
     "collect_errors",
 ]

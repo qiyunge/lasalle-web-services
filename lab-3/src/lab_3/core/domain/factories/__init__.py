@@ -1,1 +1,0 @@
-from .inscription_factory import InscriptionFactory

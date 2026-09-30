@@ -1,22 +1,68 @@
-from lab_3.core.application.ports.inbound.create_inscription import CreateInscriptionCommand, CreateInscriptionResult
-
-from  .request import CreateInscriptionRequest
-from .response import CreateInscriptionResponse
 from lab_3.adapters.inbound.flask.common.error_mapper import HttpErrorResponse
-from lab_3.core.application.ports.inbound.create_inscription import StudentNotFound, CourseNotFound, InscriptionAlreadyExists, InscriptionCreationFailed
+from lab_3.core.application.ports.inbound.create_inscription import (
+    CourseNotFound,
+    CreateInscriptionCommand,
+    CreateInscriptionResult,
+    InscriptionAlreadyExists,
+    StudentNotFound,
+)
+from lab_3.core.domain.common import Failure, Result, Success, collect_errors
+from lab_3.core.domain.common.validation import ValidationErrors
+from lab_3.core.domain.value_objects import CoursId, StudentId
 
-def to_create_inscription_command(request: CreateInscriptionRequest) -> CreateInscriptionCommand:
-    return CreateInscriptionCommand(student_id=request.student_id, course_id=request.course_id)
+from .request import CreateInscriptionRequest
+from .response import CreateInscriptionResponse
 
-def to_create_inscription_response(result: CreateInscriptionResult) -> CreateInscriptionResponse:
-    return CreateInscriptionResponse(id=result.id, student_id=result.student_id, course_id=result.course_id, note=result.note)
+
+def to_create_inscription_command(
+    request: CreateInscriptionRequest,
+) -> Result[CreateInscriptionCommand, ValidationErrors]:
+    student_id_result = StudentId.create(request.student_id)
+    cours_id_result = CoursId.create(request.cours_id)
+    errors = collect_errors(student_id_result, cours_id_result)
+    if errors:
+        return Failure(ValidationErrors(tuple(errors)))
+
+    assert isinstance(student_id_result, Success) # for pyright
+    assert isinstance(cours_id_result, Success)
+
+    return Success(
+        CreateInscriptionCommand(
+            student_id=student_id_result.value,
+            cours_id=cours_id_result.value,
+        )
+    )
+
+
+def to_create_inscription_response(
+    result: CreateInscriptionResult,
+) -> CreateInscriptionResponse:
+    return CreateInscriptionResponse(
+        id=result.id,
+        student_id=result.student_id,
+        cours_id=result.cours_id,
+        note=result.note,
+    )
+
 
 def map_create_inscription_error(error) -> HttpErrorResponse:
     if isinstance(error, StudentNotFound):
-        return HttpErrorResponse(body={'error': 'Student not found',"student_id": error.student_id}, status_code=404)
-    elif isinstance(error, CourseNotFound):
-        return HttpErrorResponse(body={'error': 'Course not found',"course_id": error.course_id}, status_code=404)
-    elif isinstance(error, InscriptionAlreadyExists):
-        return HttpErrorResponse(body={'error': 'Inscription already exists',"student_id": error.student_id, "course_id": error.course_id}, status_code=409)
-    
+        return HttpErrorResponse(
+            body={"error": "Student not found", "student_id": error.student_id.value},
+            status_code=404,
+        )
+    if isinstance(error, CourseNotFound):
+        return HttpErrorResponse(
+            body={"error": "Course not found", "cours_id": error.cours_id.value},
+            status_code=404,
+        )
+    if isinstance(error, InscriptionAlreadyExists):
+        return HttpErrorResponse(
+            body={
+                "error": "Inscription already exists",
+                "student_id": error.student_id.value,
+                "cours_id": error.cours_id.value,
+            },
+            status_code=409,
+        )
     raise RuntimeError(f"Unhandled CreateInscription error: {error}")

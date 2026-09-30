@@ -1,7 +1,18 @@
-from .student import StudentId, StudentName, StudentEmail
-from .cours import CoursId, CoursCode, CoursName
+from .cours import CoursCode, CoursId, CoursName
 from .inscription import InscriptionId
 from .note import Note
 from .programme import ProgrammeId, ProgrammeName
+from .student import StudentEmail, StudentId, StudentName
 
-__all__ = ["StudentId", "StudentName", "StudentEmail", "CoursId", "CoursCode", "CoursName", "InscriptionId", "Note", "ProgrammeId", "ProgrammeName"]
+__all__ = [
+    "CoursCode",
+    "CoursId",
+    "CoursName",
+    "InscriptionId",
+    "Note",
+    "ProgrammeId",
+    "ProgrammeName",
+    "StudentEmail",
+    "StudentId",
+    "StudentName",
+]

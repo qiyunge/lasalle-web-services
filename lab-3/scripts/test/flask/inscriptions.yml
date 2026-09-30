@@ -1,0 +1,22 @@
+info:
+  name: inscriptions
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: 127.0.0.1:5000/inscriptions
+  body:
+    type: json
+    data: |-
+      {
+        "student_id":1,
+        "cours_id":2
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

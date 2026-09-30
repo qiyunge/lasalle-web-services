@@ -1,14 +1,13 @@
-import sqlite3
-
-from lab_3.adapters.outbound.sqlite.student_repository import SqliteStudentRepository
 from lab_3.adapters.outbound.sqlite.cours_repository import SqliteCoursRepository
-from lab_3.adapters.outbound.sqlite.inscription_repository import SqliteInscriptionRepository
-from lab_3.adapters.outbound.sqlite.connection import SqliteConnectionFactory
+from lab_3.adapters.outbound.sqlite.inscription_repository import (
+    SqliteInscriptionRepository,
+)
+from lab_3.adapters.outbound.sqlite.student_repository import SqliteStudentRepository
+from lab_3.adapters.outbound.sqlite.unit_of_work import SqliteConnectionProvider
 
-def bootstrap_repositories(connection_factory: SqliteConnectionFactory):
 
-    student_repository = SqliteStudentRepository(connection_factory)
-    cours_repository = SqliteCoursRepository(connection_factory)
-    inscription_repository = SqliteInscriptionRepository(connection_factory)
-
+def bootstrap_repositories(connections: SqliteConnectionProvider):
+    student_repository = SqliteStudentRepository(connections)
+    cours_repository = SqliteCoursRepository(connections)
+    inscription_repository = SqliteInscriptionRepository(connections)
     return student_repository, cours_repository, inscription_repository
