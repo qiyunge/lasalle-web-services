@@ -5,11 +5,11 @@ from typing import Protocol
 
 from lab_3.core.domain.common import Result
 from lab_3.core.domain.inscription import Inscription
-from lab_3.core.domain.value_objects import CoursId, InscriptionId, StudentId
+from lab_3.core.domain.value_objects import CoursId, InscriptionId, Note, StudentId
 
 
 # contract for the exception
-@dataclass(frozen=True, eq=False)
+@dataclass( eq=False)
 class InscriptionIdConflict(Exception):
     id: InscriptionId
 
@@ -33,3 +33,7 @@ class InscriptionRepository(Protocol):
     def save(
         self, inscription: Inscription
     ) -> Result[Inscription, SaveInscriptionError]: ...
+
+    def find_by_id(self, id: InscriptionId) -> Inscription|None: ...
+
+    def update_note(self, id: InscriptionId, note: Note|None) ->bool: ...

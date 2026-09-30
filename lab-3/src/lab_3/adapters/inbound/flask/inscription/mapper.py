@@ -6,16 +6,21 @@ from lab_3.core.application.ports.inbound.create_inscription import (
     InscriptionAlreadyExists,
     StudentNotFound,
 )
+from lab_3.core.application.ports.inbound.update_inscription import (
+    UpdateInscriptionNoteCommand,
+    UpdateInscriptionNoteResult,
+    InscriptionNotFound,
+)
 from lab_3.core.domain.common import Failure, Result, Success, collect_errors
 from lab_3.core.domain.common.validation import ValidationErrors
-from lab_3.core.domain.value_objects import CoursId, StudentId
+from lab_3.core.domain.value_objects import CoursId, StudentId, InscriptionId, Note
 
-from .request import CreateInscriptionRequest
-from .response import CreateInscriptionResponse
+from .request import CreateInscriptionRequest, UpdateInscriptionNoteRequest
+from .response import CreateInscriptionResponse, UpdateInscriptionNoteResponse
 
 
 def to_create_inscription_command(
-    request: CreateInscriptionRequest,
+    request: CreateInscriptionRequest
 ) -> Result[CreateInscriptionCommand, ValidationErrors]:
     student_id_result = StudentId.create(request.student_id)
     cours_id_result = CoursId.create(request.cours_id)
@@ -66,3 +71,32 @@ def map_create_inscription_error(error) -> HttpErrorResponse:
             status_code=409,
         )
     raise RuntimeError(f"Unhandled CreateInscription error: {error}")
+
+## Update inscription note mapper
+
+def to_update_inscription_note_command(
+    request: UpdateInscriptionNoteRequest,
+) -> Result[UpdateInscriptionNoteCommand, ValidationErrors]:
+    id_result = InscriptionId.create(request.id)
+    note_result = (Success(None) if request.note is None else Note.create(request.note))
+    errors = collect_errors(id_result, note_result)
+    if errors:
+        return Failure(ValidationErrors(tuple(tuple(errors))))
+
+    assert isinstance(id_result, Success)
+    assert isinstance(note_result, Success)
+    return Success(UpdateInscriptionNoteCommand(id=id_result.value, note=note_result.value))
+
+def map_update_inscription_note_error(error:InscriptionNotFound) -> HttpErrorResponse:
+    return HttpErrorResponse(
+        body={"error": "Inscription not found", "id": error.id.value},
+        status_code=404,
+    )
+
+def to_update_inscription_note_response(
+    result: UpdateInscriptionNoteResult,
+) -> UpdateInscriptionNoteResponse:
+    return UpdateInscriptionNoteResponse(
+        id=result.id,
+        note=result.note,
+    )

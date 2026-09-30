@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from lab_3.core.application.command import Command
-
-
+from lab_3.core.application.command import Command 
+from lab_3.core.application.bus.command_bus import CommandHandler
 class SimpleCommandBus:
     def __init__(self) -> None:
         self._handlers: dict[type, Any] = {}

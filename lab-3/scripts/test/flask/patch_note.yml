@@ -1,18 +1,14 @@
 info:
-  name: inscriptions
+  name: patch_note
   type: http
   seq: 1
 
 http:
-  method: POST
-  url: 127.0.0.1:5000/inscriptions
+  method: PATCH
+  url: http://127.0.0.1:5000/inscriptions/1
   body:
     type: json
-    data: |-
-      {
-        "student_id":1,
-        "cours_id":2
-      }
+    data: '{"note":85}'
   auth: inherit
 
 settings:

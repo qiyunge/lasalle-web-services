@@ -6,9 +6,14 @@ from lab_3.adapters.outbound.sqlite.student_repository import SqliteStudentRepos
 from lab_3.core.application.bus import CommandBus, SimpleCommandBus
 from lab_3.core.application.ports.inbound.create_inscription import (
     CreateInscriptionCommand,
+
+)
+from lab_3.core.application.ports.inbound.update_inscription import (
+    UpdateInscriptionNoteCommand,
 )
 from lab_3.core.application.ports.outbound import UnitOfWork
 from lab_3.core.application.services.create_inscription import CreateInscriptionHandler
+from lab_3.core.application.services.update_inscription_note import UpdateInscriptionNoteHandler
 
 
 def bootstrap_command_bus(
@@ -24,6 +29,13 @@ def bootstrap_command_bus(
             inscription_repository=inscription_repository,
             student_repository=student_repository,
             cours_repository=cours_repository,
+            unit_of_work=unit_of_work,
+        ),
+    )
+    bus.register(
+        UpdateInscriptionNoteCommand,
+        UpdateInscriptionNoteHandler(
+            inscription_repository=inscription_repository,
             unit_of_work=unit_of_work,
         ),
     )

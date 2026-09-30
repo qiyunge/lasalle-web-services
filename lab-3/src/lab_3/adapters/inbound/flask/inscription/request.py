@@ -49,3 +49,34 @@ def parse_create_inscription_request(
     if not isinstance(student_id, int) or not isinstance(cours_id, int):
         return Failure(RequestValidationErrors(tuple(errors)))
     return Success(CreateInscriptionRequest(student_id=student_id, cours_id=cours_id))
+
+
+# Update inscription note request
+@dataclass(frozen=True)
+class UpdateInscriptionNoteRequest:
+    id: int
+    note: float | None
+
+def parse_update_inscription_note_request(
+
+    id: int,
+    data: object,
+) -> Result[UpdateInscriptionNoteRequest, RequestValidationErrors]:
+    if not isinstance(data, dict):
+        return Failure(RequestValidationErrors((
+            RequestValidationError(field="body", message="JSON object is required"),)))
+
+    if "note" not in data:
+        return Failure(RequestValidationErrors((
+            RequestValidationError(field="note", message="Note is required"),)))
+
+    note:object = data["note"]
+
+    if note is None:
+        return Success(UpdateInscriptionNoteRequest(id=id, note=None))
+
+    if not isinstance(note, (int, float)):
+        return Failure(RequestValidationErrors((
+            RequestValidationError(field="note", message="Note must be a number or None"),)))
+
+    return Success(UpdateInscriptionNoteRequest(id=id, note=float(note)))

@@ -10,7 +10,7 @@ from lab_3.core.application.ports.outbound.inscription_repository import (
 )
 from lab_3.core.domain.common import Failure, Result, Success
 from lab_3.core.domain.inscription import Inscription
-from lab_3.core.domain.value_objects import CoursId, StudentId
+from lab_3.core.domain.value_objects import CoursId, StudentId, InscriptionId, Note
 
 
 class SqliteInscriptionRepository:
@@ -45,6 +45,15 @@ class SqliteInscriptionRepository:
         except sqlite3.IntegrityError as error:
             return Failure(_save_conflict(error, inscription))
 
+    def update_note(self, id: InscriptionId, note: Note|None) ->bool:
+        cursor = self._connections.execute(
+            "UPDATE INSCRIPTIONS SET note = ? WHERE id = ?",
+            (note.value if note is not None else None, id.value),
+        )
+
+       
+        return cursor.rowcount > 0
+      
 
 def _save_conflict(
     error: sqlite3.IntegrityError, inscription: Inscription
