@@ -1,3 +1,4 @@
+from shlex import join
 from flask import Response, jsonify, request
 
 from lab_3.adapters.inbound.flask.common.error_mapper import (
@@ -11,6 +12,8 @@ from lab_3.adapters.inbound.flask.inscription.mapper import (
     map_update_inscription_note_error,
     to_update_inscription_note_command,
     to_update_inscription_note_response,
+    to_delete_inscription_command,
+    map_delete_inscription_error,
 )
 from lab_3.adapters.inbound.flask.inscription.request import (
     parse_create_inscription_request,
@@ -73,3 +76,17 @@ class InscriptionController:
             return jsonify(response.to_dict()), 200
 
         raise RuntimeError("Unhandled update inscription note result")
+
+    def delete_inscription(self, id: int) -> tuple[Response, int]:
+        command_result = to_delete_inscription_command(id)
+        if isinstance(command_result, Failure):
+            response = map_validation_errors(command_result.error)
+            return jsonify(response.body), response.status_code
+
+        result =  self._command_bus.dispatch(command_result.value)
+
+        if isinstance(result, Failure):
+            response = map_delete_inscription_error(result.error)
+            return jsonify(response.body), response.status_code
+
+        return jsonify({"message": "Inscription deleted successfully"}), 200

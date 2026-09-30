@@ -80,3 +80,5 @@ def parse_update_inscription_note_request(
             RequestValidationError(field="note", message="Note must be a number or None"),)))
 
     return Success(UpdateInscriptionNoteRequest(id=id, note=float(note)))
+
+# Delete inscription request

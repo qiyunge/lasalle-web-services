@@ -13,4 +13,10 @@ def inscription_blueprint(controller: InscriptionController) -> Blueprint:
     @router.patch("/<int:id>")
     def update_inscription_note(id: int):
         return controller.update_inscription_note(id)
+    
+
+    @router.delete("/<int:id>")
+    def delete_inscription(id: int):
+        return controller.delete_inscription(id)
+
     return router

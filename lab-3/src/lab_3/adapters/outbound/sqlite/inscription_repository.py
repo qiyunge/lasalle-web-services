@@ -50,11 +50,15 @@ class SqliteInscriptionRepository:
             "UPDATE INSCRIPTIONS SET note = ? WHERE id = ?",
             (note.value if note is not None else None, id.value),
         )
-
-       
+ 
         return cursor.rowcount > 0
-      
-
+    def delete(self, id: InscriptionId) -> bool:
+        cursor = self._connections.execute(
+            "DELETE FROM INSCRIPTIONS WHERE id = ?",
+            (id.value,),
+        )
+        return cursor.rowcount > 0
+    
 def _save_conflict(
     error: sqlite3.IntegrityError, inscription: Inscription
 ) -> SaveInscriptionError:

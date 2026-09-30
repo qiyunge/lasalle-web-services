@@ -11,9 +11,13 @@ from lab_3.core.application.ports.inbound.create_inscription import (
 from lab_3.core.application.ports.inbound.update_inscription import (
     UpdateInscriptionNoteCommand,
 )
+from lab_3.core.application.ports.inbound.delete_inscription import (
+    DeleteInscriptionCommand,
+)
 from lab_3.core.application.ports.outbound import UnitOfWork
 from lab_3.core.application.services.create_inscription import CreateInscriptionHandler
 from lab_3.core.application.services.update_inscription_note import UpdateInscriptionNoteHandler
+from lab_3.core.application.services.delete_inscription import DeleteInscriptionHandler
 
 
 def bootstrap_command_bus(
@@ -35,6 +39,13 @@ def bootstrap_command_bus(
     bus.register(
         UpdateInscriptionNoteCommand,
         UpdateInscriptionNoteHandler(
+            inscription_repository=inscription_repository,
+            unit_of_work=unit_of_work,
+        ),
+    )
+    bus.register(
+        DeleteInscriptionCommand,
+        DeleteInscriptionHandler(
             inscription_repository=inscription_repository,
             unit_of_work=unit_of_work,
         ),

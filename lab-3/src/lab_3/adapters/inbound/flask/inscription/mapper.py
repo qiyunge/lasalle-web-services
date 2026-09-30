@@ -11,6 +11,11 @@ from lab_3.core.application.ports.inbound.update_inscription import (
     UpdateInscriptionNoteResult,
     InscriptionNotFound,
 )
+from lab_3.core.application.ports.inbound.delete_inscription import (
+    DeleteInscriptionCommand,
+    DeleteInscriptionResult,
+    InscriptionIdNotFound as DeleteInscriptionIdNotFound,
+)
 from lab_3.core.domain.common import Failure, Result, Success, collect_errors
 from lab_3.core.domain.common.validation import ValidationErrors
 from lab_3.core.domain.value_objects import CoursId, StudentId, InscriptionId, Note
@@ -99,4 +104,23 @@ def to_update_inscription_note_response(
     return UpdateInscriptionNoteResponse(
         id=result.id,
         note=result.note,
+    )
+
+
+## Delete inscription mapper
+
+def to_delete_inscription_command(
+    inscription_id: int,
+) -> Result[DeleteInscriptionCommand, ValidationErrors]:
+    id_result = InscriptionId.create(inscription_id)
+    errors = collect_errors(id_result)
+    if errors:
+        return Failure(ValidationErrors(tuple(tuple(errors))))
+    assert isinstance(id_result, Success)
+    return Success(DeleteInscriptionCommand(id=id_result.value))
+
+def map_delete_inscription_error(error: DeleteInscriptionIdNotFound) -> HttpErrorResponse:
+    return HttpErrorResponse(
+        body={"error": "Inscription not found", "id": error.id.value},
+        status_code=404,
     )
