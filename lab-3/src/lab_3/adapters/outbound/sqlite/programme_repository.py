@@ -1,8 +1,10 @@
+import sqlite3
 from .unit_of_work import SqliteConnectionProvider
 
 from lab_3.core.domain.common import Result, Success, Failure
 from lab_3.core.domain.programme import Programme
 from lab_3.core.domain.value_objects import ProgrammeId, ProgrammeName
+from lab_3.core.application.ports.outbound.programme_repository import ProgrammeIdConflictException, ProgrammeNameConflictException
 
 class SqliteProgrammeRepository:
     def __init__(self, connections: SqliteConnectionProvider) -> None:
@@ -24,3 +26,14 @@ class SqliteProgrammeRepository:
             programmes.append(programme)
         
         return programmes
+
+    def save(self, programme: Programme) -> None:
+        try:
+            cursor = self._connections.execute("INSERT INTO PROGRAMMES (id, name) VALUES (?, ?)", (programme.id.value, programme.name.value))
+        except sqlite3.IntegrityError as e:
+            if e.sqlite_error_code == sqlite3.SQLITE_CONSTRAINT_UNIQUE:
+                raise ProgrammeNameConflictException(programme.name) from e 
+            elif e.sqlite_error_code in (sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY, sqlite3.SQLITE_CONSTRAINT_ROWID,):
+                raise ProgrammeIdConflictException(programme.id) from e
+            else:
+                raise
