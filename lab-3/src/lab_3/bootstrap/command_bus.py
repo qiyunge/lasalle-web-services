@@ -18,9 +18,14 @@ from lab_3.core.application.ports.outbound import UnitOfWork
 from lab_3.core.application.services.create_inscription import CreateInscriptionHandler
 from lab_3.core.application.services.update_inscription_note import UpdateInscriptionNoteHandler
 from lab_3.core.application.services.delete_inscription import DeleteInscriptionHandler
+from lab_3.core.application.ports.outbound.programme_repository import ProgrammeRepository
 
+#programme 
+from lab_3.core.application.ports.inbound.programmes.list import ProgrammeListQuery
+from lab_3.core.application.services.programmes.list import ProgrammeListHandler
 
 def bootstrap_command_bus(
+    programme_repository: ProgrammeRepository,
     student_repository: SqliteStudentRepository,
     cours_repository: SqliteCoursRepository,
     inscription_repository: SqliteInscriptionRepository,
@@ -49,5 +54,10 @@ def bootstrap_command_bus(
             inscription_repository=inscription_repository,
             unit_of_work=unit_of_work,
         ),
+    )
+    #programme commands
+    bus.register(
+        ProgrammeListQuery,
+        ProgrammeListHandler(programme_repository, unit_of_work),
     )
     return bus

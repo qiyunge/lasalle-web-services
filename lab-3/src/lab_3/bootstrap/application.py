@@ -5,7 +5,8 @@ from lab_3.adapters.outbound.sqlite.unit_of_work import (
     SqliteUnitOfWork,
 )
 
-from .bus import bootstrap_command_bus
+from .command_bus import bootstrap_command_bus
+
 from .database import bootstrap_database
 from .repositories import bootstrap_repositories
 from .web import bootstrap_web
@@ -16,14 +17,16 @@ def create_app() -> Flask:
     connection_factory = bootstrap_database()
     connections = SqliteConnectionProvider()
     unit_of_work = SqliteUnitOfWork(connection_factory)
-    student_repository, cours_repository, inscription_repository = (
+    programme_repository, student_repository, cours_repository, inscription_repository = (
         bootstrap_repositories(connections)
     )
     command_bus = bootstrap_command_bus(
+        programme_repository,
         student_repository,
         cours_repository,
         inscription_repository,
         unit_of_work,
     )
+   
     bootstrap_web(app, command_bus)
     return app
