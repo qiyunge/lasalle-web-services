@@ -2,8 +2,8 @@ import uuid
 
 from lab_3.core.application.ports.inbound.programmes.create import (
     CreateProgrammeCommand,
-    CreateProgrammeResult,  
-    CreateProgrammeOutcome,
+    CreateProgrammeOutcome,  
+    CreateProgrammeResult,
     ProgrammeNameAlreadyExists,
 )
 from lab_3.core.application.ports.outbound.programme_repository import (
@@ -30,7 +30,7 @@ def _new_programme(command: CreateProgrammeCommand) -> Programme:
         raise RuntimeError("Generated programme ID is invalid")  # noqa: TRY004
 
     return Programme.create(
-        id=id_result.value,
+        id=id_result.outcome,
         name=command.name,
     )
 
@@ -47,7 +47,7 @@ class CreateProgrammeHandler:
     def handle(
         self,
         command: CreateProgrammeCommand,
-    ) -> CreateProgrammeOutcome:
+    ) -> CreateProgrammeResult:
         programme = _new_programme(command)
 
         for attempt in range(_TRANSACTION_ATTEMPTS):
@@ -65,12 +65,12 @@ class CreateProgrammeHandler:
 
         raise RuntimeError("Create programme transaction was not completed")
 
-    def _create(self, programme: Programme) -> CreateProgrammeResult:
+    def _create(self, programme: Programme) -> Success[CreateProgrammeOutcome]:
         with self._unit_of_work as uow:
             self._programme_repository.save(programme)
             uow.commit()
 
-        return Success(CreateProgrammeResult(
+        return Success(CreateProgrammeOutcome(
             id=programme.id.value,
             name=programme.name.value,
         ))

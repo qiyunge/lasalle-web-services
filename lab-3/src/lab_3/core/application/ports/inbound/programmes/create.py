@@ -5,13 +5,13 @@ from lab_3.core.domain.value_objects import ProgrammeName
 from lab_3.core.domain.common import Result
 
 @dataclass(frozen=True)
-class CreateProgrammeResult:
+class CreateProgrammeOutcome:
     id: int
     name: str
 
 
 @dataclass(frozen=True)
-class CreateProgrammeCommand(Command[CreateProgrammeResult]):
+class CreateProgrammeCommand(Command[CreateProgrammeOutcome]):
     name: ProgrammeName
 
 @dataclass(frozen=True)
@@ -22,8 +22,8 @@ class ProgrammeNameAlreadyExists:
 class ProgrammeNameConflictException(Exception):
     pass
 
-type ProgrammeCreationFailed = (
+type ProgrammeCreationError = (
      ProgrammeNameAlreadyExists
 )
 
-CreateProgrammeOutcome = Result[CreateProgrammeResult, ProgrammeCreationFailed] 
+CreateProgrammeResult = Result[CreateProgrammeOutcome, ProgrammeCreationError] 

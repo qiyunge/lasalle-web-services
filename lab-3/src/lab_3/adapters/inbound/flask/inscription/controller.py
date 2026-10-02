@@ -33,21 +33,21 @@ class InscriptionController:
             response = map_request_errors(parse_result.error)
             return jsonify(response.body), response.status_code
 
-        request_dto = parse_result.value
+        request_dto = parse_result.outcome
 
         command_result = to_create_inscription_command(request_dto)
         if isinstance(command_result, Failure):
             response = map_validation_errors(command_result.error)
             return jsonify(response.body), response.status_code
 
-        result = self._command_bus.dispatch(command_result.value)
+        result = self._command_bus.dispatch(command_result.outcome)
 
         if isinstance(result, Failure):
             response = map_create_inscription_error(result.error)
             return jsonify(response.body), response.status_code
 
         if isinstance(result, Success):
-            response = to_create_inscription_response(result.value)
+            response = to_create_inscription_response(result.outcome)
             return jsonify(response.to_dict()), 201
 
         raise RuntimeError("Unhandled create inscription result")
@@ -58,21 +58,21 @@ class InscriptionController:
             response = map_request_errors(parse_result.error)
             return jsonify(response.body), response.status_code
 
-        request_dto = parse_result.value
+        request_dto = parse_result.outcome
 
         command_result = to_update_inscription_note_command(request_dto)
         if isinstance(command_result, Failure):
             response = map_validation_errors(command_result.error)
             return jsonify(response.body), response.status_code
 
-        result = self._command_bus.dispatch(command_result.value)
+        result = self._command_bus.dispatch(command_result.outcome)
 
         if isinstance(result, Failure):
             respose =  map_update_inscription_note_error(result.error)
             return jsonify(response.body), response.status_code
 
         if isinstance(result, Success):
-            response = to_update_inscription_note_response(result.value)
+            response = to_update_inscription_note_response(result.outcome)
             return jsonify(response.to_dict()), 200
 
         raise RuntimeError("Unhandled update inscription note result")
@@ -83,7 +83,7 @@ class InscriptionController:
             response = map_validation_errors(command_result.error)
             return jsonify(response.body), response.status_code
 
-        result =  self._command_bus.dispatch(command_result.value)
+        result =  self._command_bus.dispatch(command_result.outcome)
 
         if isinstance(result, Failure):
             response = map_delete_inscription_error(result.error)

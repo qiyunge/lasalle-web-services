@@ -38,8 +38,8 @@ def to_create_inscription_command(
 
     return Success(
         CreateInscriptionCommand(
-            student_id=student_id_result.value,
-            cours_id=cours_id_result.value,
+            student_id=student_id_result.outcome,
+            cours_id=cours_id_result.outcome,
         )
     )
 
@@ -90,7 +90,7 @@ def to_update_inscription_note_command(
 
     assert isinstance(id_result, Success)
     assert isinstance(note_result, Success)
-    return Success(UpdateInscriptionNoteCommand(id=id_result.value, note=note_result.value))
+    return Success(UpdateInscriptionNoteCommand(id=id_result.outcome, note=note_result.outcome))
 
 def map_update_inscription_note_error(error:InscriptionNotFound) -> HttpErrorResponse:
     return HttpErrorResponse(
@@ -117,7 +117,7 @@ def to_delete_inscription_command(
     if errors:
         return Failure(ValidationErrors(tuple(tuple(errors))))
     assert isinstance(id_result, Success)
-    return Success(DeleteInscriptionCommand(id=id_result.value))
+    return Success(DeleteInscriptionCommand(id=id_result.outcome))
 
 def map_delete_inscription_error(error: DeleteInscriptionIdNotFound) -> HttpErrorResponse:
     return HttpErrorResponse(

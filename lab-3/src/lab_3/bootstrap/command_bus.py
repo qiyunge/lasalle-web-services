@@ -21,6 +21,8 @@ from lab_3.core.application.services.delete_inscription import DeleteInscription
 from lab_3.core.application.ports.outbound.programme_repository import ProgrammeRepository
 from lab_3.core.application.ports.inbound.programmes.create import CreateProgrammeCommand
 from lab_3.core.application.services.programmes.create import CreateProgrammeHandler
+from lab_3.core.application.ports.inbound.students.create import CreateStudentCommand
+from lab_3.core.application.services.students.create import CreateStudentHandler
 #programme 
 from lab_3.core.application.ports.inbound.programmes.list import ProgrammeListQuery
 from lab_3.core.application.services.programmes.list import ProgrammeListHandler
@@ -64,5 +66,10 @@ def bootstrap_command_bus(
     bus.register(
         CreateProgrammeCommand,
         CreateProgrammeHandler(programme_repository, unit_of_work),
+    )
+    #student commands
+    bus.register(
+        CreateStudentCommand,
+        CreateStudentHandler(student_repository=student_repository, programme_repository=programme_repository, unit_of_work=unit_of_work),
     )
     return bus

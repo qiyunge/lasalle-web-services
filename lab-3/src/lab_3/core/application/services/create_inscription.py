@@ -37,7 +37,7 @@ def _new_inscription(command: CreateInscriptionCommand) -> Inscription:
     if isinstance(id_result, Failure):
         raise RuntimeError("Generated inscription id is invalid") # noqa: TRY004
     return Inscription.create(
-        id=id_result.value,
+        id=id_result.outcome,
         student_id=command.student_id,
         cours_id=command.cours_id,
     )
@@ -112,7 +112,7 @@ class CreateInscriptionHandler:
                     )
                 )   
             unit_of_work.commit()
-            inscription = saved_result.value
+            inscription = saved_result.outcome
 
         inscription_id = inscription.id
         if inscription_id is None:

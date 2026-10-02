@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Success[T]:
-    value: T
+    outcome: T
 
 
 @dataclass(frozen=True)

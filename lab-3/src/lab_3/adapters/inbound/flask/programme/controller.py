@@ -10,7 +10,7 @@ from lab_3.adapters.inbound.flask.common.error_mapper import map_request_errors,
 from lab_3.adapters.inbound.flask.programme.request import parse_create_programme_request
 from lab_3.adapters.inbound.flask.programme.mapper import to_create_programme_command, to_create_programme_response, map_create_programme_error
 from lab_3.core.domain.common import Failure, Success
-from lab_3.core.application.ports.inbound.programmes.create import CreateProgrammeResult
+from lab_3.core.application.ports.inbound.programmes.create import CreateProgrammeOutcome
 
 class ProgrammeController:
     def __init__(self, command_bus: CommandBus, ) -> None:
@@ -26,7 +26,7 @@ class ProgrammeController:
             response = map_request_errors(parse_result.error)
             return jsonify(response.body), response.status_code
 
-        request_dto = parse_result.value
+        request_dto = parse_result.outcome
 
         command_result = to_create_programme_command(request_dto)
         if isinstance(command_result, Failure):
@@ -39,7 +39,7 @@ class ProgrammeController:
             return jsonify(response.body), response.status_code
 
         if isinstance(result, Success):
-            response = to_create_programme_response(result.value)
+            response = to_create_programme_response(result.outcome)
             return jsonify(response.to_dict()), 201
 
         raise RuntimeError("Unhandled create programme result")

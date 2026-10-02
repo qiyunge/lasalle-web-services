@@ -26,7 +26,7 @@ from lab_3.core.domain.value_objects import CoursId, InscriptionId, StudentId
 def _value[T](result: Result[T, ValidationError]) -> T:
     if isinstance(result, Failure):
         raise AssertionError(result.error.message)
-    return result.value
+    return result.outcome
 
 
 def _inscription_id(inscription: Inscription) -> InscriptionId:
@@ -123,10 +123,10 @@ def test_creates_inscription_and_commits() -> None:
     result = handler.handle(_command())
 
     assert isinstance(result, Success)
-    assert result.value.student_id == 1
-    assert result.value.cours_id == 2
-    assert result.value.note is None
-    assert result.value.id == _inscription_id(inscriptions.saved[0]).value
+    assert result.outcome.student_id == 1
+    assert result.outcome.cours_id == 2
+    assert result.outcome.note is None
+    assert result.outcome.id == _inscription_id(inscriptions.saved[0]).value
     assert unit_of_work.entered == 1
     assert unit_of_work.commits == 1
 
@@ -193,7 +193,7 @@ def test_retries_with_a_new_id_after_id_conflict() -> None:
     assert isinstance(result, Success)
     assert len(inscriptions.saved) == 2
     assert _inscription_id(inscriptions.saved[0]) != _inscription_id(inscriptions.saved[1])
-    assert result.value.id == _inscription_id(inscriptions.saved[1]).value
+    assert result.outcome.id == _inscription_id(inscriptions.saved[1]).value
     assert unit_of_work.entered == 2
     assert unit_of_work.commits == 1
 
@@ -221,7 +221,7 @@ def test_retries_the_same_id_when_the_transaction_restarts() -> None:
 
     assert isinstance(result, Success)
     assert _inscription_id(inscriptions.saved[0]) is _inscription_id(inscriptions.saved[1])
-    assert result.value.id == _inscription_id(inscriptions.saved[1]).value
+    assert result.outcome.id == _inscription_id(inscriptions.saved[1]).value
     assert unit_of_work.entered == 2
     assert unit_of_work.commits == 1
 

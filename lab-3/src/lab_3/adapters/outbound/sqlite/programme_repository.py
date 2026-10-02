@@ -22,7 +22,7 @@ class SqliteProgrammeRepository:
 
             assert isinstance(id_result, Success) and isinstance(name_result, Success)
 
-            programme = Programme.restore(id=id_result.value, name=name_result.value)
+            programme = Programme.restore(id=id_result.outcome, name=name_result.outcome)
             programmes.append(programme)
         
         return programmes
