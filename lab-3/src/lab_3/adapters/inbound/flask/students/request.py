@@ -51,3 +51,38 @@ def parse_create_student_request(data: object) -> Result[CreateStudentRequest, R
     if errors:
         return Failure(RequestValidationErrors(tuple(errors)))
     return Success(CreateStudentRequest(name=name, email=email, programme_id=programme_id))
+
+@dataclass(frozen=True)
+class GetStudentRequest:
+    student_id: int
+
+def parse_get_student_request(student_id: int) -> Result[GetStudentRequest, RequestValidationErrors]:
+    if not isinstance(student_id, int):
+        return Failure(
+            RequestValidationErrors(
+                (
+                    RequestValidationError(
+                        field="student_id", message="Student ID must be an integer"
+                    ),
+                )
+            )
+        )
+    return Success(GetStudentRequest(student_id=student_id))    
+
+
+@dataclass(frozen=True)
+class DeleteStudentRequest:
+    student_id: int
+
+def parse_delete_student_request(student_id: int) -> Result[DeleteStudentRequest, RequestValidationErrors]:
+    if not isinstance(student_id, int):
+        return Failure(
+            RequestValidationErrors(
+                (
+                    RequestValidationError(
+                        field="student_id", message="Student ID must be an integer" 
+                    ),
+                )
+            )
+        )
+    return Success(DeleteStudentRequest(student_id=student_id))

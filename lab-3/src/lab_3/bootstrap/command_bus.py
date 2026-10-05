@@ -26,7 +26,10 @@ from lab_3.core.application.services.students.create import CreateStudentHandler
 #programme 
 from lab_3.core.application.ports.inbound.programmes.list import ProgrammeListQuery
 from lab_3.core.application.services.programmes.list import ProgrammeListHandler
-
+from lab_3.core.application.ports.inbound.students.get import GetStudentCommand
+from lab_3.core.application.services.students.get import GetStudentHandler
+from lab_3.core.application.ports.inbound.students.delete import DeleteStudentCommand
+from lab_3.core.application.services.students.delete import DeleteStudentHandler
 def bootstrap_command_bus(
     programme_repository: ProgrammeRepository,
     student_repository: SqliteStudentRepository,
@@ -72,4 +75,13 @@ def bootstrap_command_bus(
         CreateStudentCommand,
         CreateStudentHandler(student_repository=student_repository, programme_repository=programme_repository, unit_of_work=unit_of_work),
     )
+    bus.register(
+        GetStudentCommand,
+        GetStudentHandler(student_repository=student_repository, unit_of_work=unit_of_work),
+    )
+    bus.register(
+        DeleteStudentCommand,
+        DeleteStudentHandler(student_repository=student_repository, unit_of_work=unit_of_work),
+    )
+
     return bus

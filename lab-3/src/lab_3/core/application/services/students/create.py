@@ -9,7 +9,8 @@ from lab_3.core.domain.common import Failure, Success
 from lab_3.core.application.ports.inbound.students.create import StudentEmailAlreadyExists, ProgrammeNotFound
 from lab_3.core.domain.value_objects import StudentId
 from lab_3.core.domain import Student
-from lab_3.core.application.ports.outbound.student_repository import StudentSaveResult, StudentEmailConflictError, StudentIdConflictError
+from lab_3.core.application.ports.outbound.student_repository import StudentSavePersistenceResult, StudentEmailConflictPersistenceError, StudentIdConflictPersistenceError
+
 
 def _new_student(command: CreateStudentCommand) -> Student:
     value = uuid.uuid4().int % (2**63)
@@ -36,12 +37,12 @@ class CreateStudentHandler:
                     return Success(CreateStudentOutcome(student.id, student.name, student.email, student.programme_id))
 
                 match result.error:
-                    case StudentIdConflictError():
+                    case StudentIdConflictPersistenceError():
                         if attempt == _TRANSACTION_ATTEMPTS - 1:
                             raise RuntimeError("Failed to generate unique student ID")  # noqa: TRY004
                         student = _new_student(command)
                         continue
-                    case StudentEmailConflictError(email):
+                    case StudentEmailConflictPersistenceError(email):
                         return Failure(StudentEmailAlreadyExists(email.value))
                     case _:
                         raise RuntimeError("Unexpected error")  # noqa: TRY004
@@ -53,7 +54,7 @@ class CreateStudentHandler:
               
 
 
-    def _create(self, student: Student) -> StudentSaveResult:
+    def _create(self, student: Student) -> CreateStudentResult:
         with self._unit_of_work as uow:
             result = self._student_repository.save(student)
             if isinstance(result, Failure):

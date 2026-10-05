@@ -8,3 +8,13 @@ class CreateStudentResponse:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+@dataclass(frozen=True)
+class GetStudentResponse:
+    student_id: int
+    name: str
+    email: str
+    programme_id: int
+
+    def to_dict(self) -> dict:
+        return asdict(self)
