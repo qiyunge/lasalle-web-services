@@ -5,6 +5,8 @@ from lab_3.adapters.inbound.flask.inscription.routes import inscription_blueprin
 from lab_3.adapters.inbound.flask.programme.controller import ProgrammeController
 from lab_3.adapters.inbound.flask.programme.routes import programme_blueprint
 from lab_3.core.application.bus import CommandBus
+from lab_3.adapters.inbound.flask.cours.controller import CoursController
+from lab_3.adapters.inbound.flask.cours.routes import cours_blueprint
 from lab_3.adapters.inbound.flask.students.controller import StudentController
 from lab_3.adapters.inbound.flask.students.routes import student_blueprint
 
@@ -29,4 +31,8 @@ def bootstrap_web(app: Flask, command_bus: CommandBus) -> None:
         controller=student_controller
     )
     app.register_blueprint(blueprint_student)
+
+    cours_controller = CoursController(command_bus=command_bus)
+    blueprint_cours = cours_blueprint(controller=cours_controller)
+    app.register_blueprint(blueprint_cours)
   
