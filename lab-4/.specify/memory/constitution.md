@@ -1,50 +1,98 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# Lab-4 College Management Constitution
+
+The college management web service serves college administrative staff
+who manage academic programmes, students, courses, and enrollments.
+This constitution records that business context only.
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Programme Membership
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Every student MUST belong to an existing programme.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+Rationale: A student is a learner registered in a programme. A student
+record that names a missing programme is not a valid registration.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### II. Enrollment References
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+Every enrollment MUST reference an existing student and an existing
+course.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Rationale: An inscription records one student's enrollment in one
+course. Both the student and the course MUST already exist.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### III. Unique Course Enrollment
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+A student MUST NOT enroll in the same course more than once.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+Rationale: One inscription is the sole record of that student in that
+course. A second inscription for the same student and course is a
+conflict.
+
+### IV. Grade Within Permitted Range
+
+An enrollment MAY exist without a grade. Any assigned grade MUST be
+within the permitted range.
+
+Rationale: A note is optional at enrollment time. When a note is
+assigned, it shows that student's grade in that course, and a value
+outside the permitted range is not a valid note. A feature that
+assigns a note MUST state the permitted range it enforces.
+
+### V. Explicit Failure
+
+An operation that involves a nonexistent record or a conflicting
+record MUST fail explicitly. It MUST NOT succeed silently.
+
+Rationale: Administrative staff MUST be able to tell that the
+operation did not take effect. Silent success would hide a missing
+programme, student, or course, or a duplicate inscription.
+
+## Domain Vocabulary
+
+- **programme**: An academic programme offered by the college.
+- **student**: A learner registered in a programme.
+- **course**: A course offered by the college.
+- **inscription**: A student's enrollment in a course.
+- **note**: The grade associated with an enrollment. It shows a
+  student's grade in a course.
+
+## Feature Specification Requirements
+
+Every feature specification MUST state:
+
+- who the capability serves
+- the expected business behaviour
+- the failure paths, including the user-facing error messages
+- what is explicitly out of scope
+
+A specification that omits any of these items does not comply with
+this constitution.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution is the business-context authority for lab-4 feature
+specifications. It supersedes informal descriptions of programmes,
+students, courses, inscriptions, and notes.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+This constitution MUST stay limited to business context. It MUST NOT
+define architecture, implementation technologies, data schemas, API
+endpoint designs, or engineering practice.
+
+An amendment MUST be written into this file, MUST state which
+principle, vocabulary entry, or specification requirement changed, and
+MUST update the version and last-amended date in the same change.
+
+Versioning follows semantic versioning:
+
+- MAJOR: remove or redefine an adopted business rule.
+- MINOR: add a business rule, vocabulary entry, or specification
+  requirement.
+- PATCH: clarify wording without changing a rule.
+
+Each feature specification MUST be checked against these principles
+before it is accepted. The review MUST confirm the audience, the
+expected behaviour, the failure paths and user-facing error messages,
+and the explicit out-of-scope statement.
+
+**Version**: 1.0.0 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-14
