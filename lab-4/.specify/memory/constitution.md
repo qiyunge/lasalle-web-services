@@ -2,6 +2,8 @@
 
 The college management web service serves college administrative staff
 who manage academic programmes, students, courses, and enrollments.
+Students are also primary users. A student may browse available courses
+and enroll in a course without administrative intervention.
 This constitution records that business context only.
 
 ## Core Principles
@@ -44,9 +46,40 @@ assigns a note MUST state the permitted range it enforces.
 An operation that involves a nonexistent record or a conflicting
 record MUST fail explicitly. It MUST NOT succeed silently.
 
-Rationale: Administrative staff MUST be able to tell that the
-operation did not take effect. Silent success would hide a missing
+Rationale: Administrative staff and students MUST be able to tell that
+the operation did not take effect. Silent success would hide a missing
 programme, student, or course, or a duplicate inscription.
+
+### VI. Student Self-Enrollment
+
+A student MAY browse available courses. A student MAY enroll in a
+course without administrative intervention.
+
+A grade is not required at enrollment time. All applicable enrollment
+business rules remain in force.
+
+Rationale: Students are primary users. Browsing courses and creating
+the student's own inscription are actions the student may perform
+directly. An administrator is not required to complete either action.
+The inscription still has to satisfy every enrollment rule already
+adopted. Principle IV already allows an enrollment with no grade.
+
+### VII. Student Enrollment Authority
+
+A student MUST NOT create or modify an enrollment on behalf of another
+student.
+
+A student MUST NOT assign, modify, or remove a grade, including a grade
+associated with that student's own enrollment. Grade management is
+reserved for authorized college staff.
+
+This constitution does not grant a student the ability to withdraw from
+a course. That capability has not been specified.
+
+Rationale: Student authority covers browsing available courses and
+enrolling oneself. It does not cover another student's inscription, and
+it does not include assigning, changing, or removing a note. Leaving a
+course is a separate business rule that has not been adopted.
 
 ## Domain Vocabulary
 
@@ -95,4 +128,4 @@ before it is accepted. The review MUST confirm the audience, the
 expected behaviour, the failure paths and user-facing error messages,
 and the explicit out-of-scope statement.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-14
+**Version**: 1.1.0 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-14
