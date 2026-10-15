@@ -1,10 +1,32 @@
+<!--
+Sync Impact Report
+- Version change: 1.1.0 → 1.2.0
+- Modified principles: none renamed (I–VII unchanged)
+- Added principles:
+  - VIII. Technology Stack
+  - IX. Hexagonal Architecture
+  - X. Thin Adapters
+  - XI. Capability Boundaries
+  - XII. Established Conventions
+  - XIII. Architect Clarification
+- Added sections: none
+- Removed sections: none
+- Governance: the ban on architecture, implementation technologies, and
+  engineering practice is narrowed to the constraints in Principles
+  VIII–XIII. Data schemas and API endpoint designs stay out of scope.
+  Versioning and compliance review now cover architectural constraints.
+- Follow-up TODOs: none
+-->
+
 # Lab-4 College Management Constitution
 
 The college management web service serves college administrative staff
 who manage academic programmes, students, courses, and enrollments.
 Students are also primary users. A student may browse available courses
 and enroll in a course without administrative intervention.
-This constitution records that business context only.
+The service is built with Python 3.12, Flask, and SQLite.
+This constitution records that business context and the architectural
+constraints that govern the service.
 
 ## Core Principles
 
@@ -81,6 +103,70 @@ enrolling oneself. It does not cover another student's inscription, and
 it does not include assigning, changing, or removing a note. Leaving a
 course is a separate business rule that has not been adopted.
 
+### VIII. Technology Stack
+
+The college management web service MUST be built with Python 3.12,
+Flask, and SQLite.
+
+Rationale: These are the adopted implementation technologies. Replacing
+the language, the web framework, or the database is a new
+infrastructure choice and requires a demonstrated need.
+
+### IX. Hexagonal Architecture
+
+The system MUST follow hexagonal architecture.
+
+- Domain rules MUST remain independent of frameworks and
+  infrastructure.
+- Application use cases MUST coordinate business operations through
+  explicit ports.
+- Inbound adapters MUST translate external requests into application
+  commands or queries.
+- Outbound adapters MUST implement persistence and other
+  infrastructure concerns.
+
+Rationale: Business rules stay testable without Flask or SQLite. Ports
+are the only path by which a use case reaches anything outside the
+application.
+
+### X. Thin Adapters
+
+HTTP routes MUST stay thin. Business rules MUST NOT be implemented in
+Flask routes or SQLite adapters. Persistence access MUST go through
+repository ports. Transaction boundaries MUST preserve domain
+invariants.
+
+Rationale: A route or a SQLite adapter that contains a business rule
+binds that rule to the framework. A transaction that breaks an
+invariant would persist an invalid domain state.
+
+### XI. Capability Boundaries
+
+The student, course, programme, and inscription capabilities MUST stay
+clearly bounded. A feature's design MUST respect those existing
+boundaries and MUST NOT introduce unnecessary coupling between them.
+
+Rationale: Each capability has its own business rules. Coupling them
+without need makes a change in one capability a change in another.
+
+### XII. Established Conventions
+
+Work MUST follow the conventions already present in the project.
+External dependencies MUST remain minimal. A new architectural
+pattern, framework, or infrastructure component MUST NOT be introduced
+without a demonstrated need.
+
+Rationale: The project already has an adopted shape. An extra pattern
+or dependency is justified only when that shape cannot meet the need.
+
+### XIII. Architect Clarification
+
+A design question that these constraints do not settle MUST be
+clarified with the architect. It MUST NOT be decided autonomously.
+
+Rationale: These principles fix the boundaries that are already
+adopted. A question they leave open is an architect decision.
+
 ## Domain Vocabulary
 
 - **programme**: An academic programme offered by the college.
@@ -104,28 +190,36 @@ this constitution.
 
 ## Governance
 
-This constitution is the business-context authority for lab-4 feature
-specifications. It supersedes informal descriptions of programmes,
-students, courses, inscriptions, and notes.
+This constitution is the authority for lab-4 business context and for
+the architectural constraints recorded in this file. It supersedes
+informal descriptions of programmes, students, courses, inscriptions,
+notes, and of how the service is structured.
 
-This constitution MUST stay limited to business context. It MUST NOT
-define architecture, implementation technologies, data schemas, API
-endpoint designs, or engineering practice.
+Business principles, domain vocabulary, and feature-specification
+requirements remain in force. This constitution records the
+architecture, implementation technologies, and engineering constraints
+named in Principles VIII through XIII. It MUST NOT define data schemas
+or API endpoint designs.
 
 An amendment MUST be written into this file, MUST state which
-principle, vocabulary entry, or specification requirement changed, and
-MUST update the version and last-amended date in the same change.
+principle, vocabulary entry, specification requirement, or
+architectural constraint changed, and MUST update the version and
+last-amended date in the same change.
 
 Versioning follows semantic versioning:
 
-- MAJOR: remove or redefine an adopted business rule.
-- MINOR: add a business rule, vocabulary entry, or specification
-  requirement.
+- MAJOR: remove or redefine an adopted business rule or an adopted
+  architectural constraint.
+- MINOR: add a business rule, architectural constraint, vocabulary
+  entry, or specification requirement.
 - PATCH: clarify wording without changing a rule.
 
-Each feature specification MUST be checked against these principles
-before it is accepted. The review MUST confirm the audience, the
-expected behaviour, the failure paths and user-facing error messages,
-and the explicit out-of-scope statement.
+Each feature specification MUST be checked against the business
+principles before it is accepted. The review MUST confirm the
+audience, the expected behaviour, the failure paths and user-facing
+error messages, and the explicit out-of-scope statement.
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-14
+Each design and implementation change MUST be checked against
+Principles VIII through XIII before it is accepted.
+
+**Version**: 1.2.0 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-14
