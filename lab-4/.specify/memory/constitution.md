@@ -1,20 +1,20 @@
 <!--
 Sync Impact Report
-- Version change: 1.1.0 → 1.2.0
-- Modified principles: none renamed (I–VII unchanged)
+- Version change: 1.2.0 → 1.3.0
+- Modified principles (rules kept; added detail only):
+  - I. Programme Membership
+  - II. Enrollment References
+  - III. Unique Course Enrollment
+  - IV. Grade Within Permitted Range
 - Added principles:
-  - VIII. Technology Stack
-  - IX. Hexagonal Architecture
-  - X. Thin Adapters
-  - XI. Capability Boundaries
-  - XII. Established Conventions
-  - XIII. Architect Clarification
+  - XIV. Student Identity
+  - XV. Course Identity
 - Added sections: none
 - Removed sections: none
-- Governance: the ban on architecture, implementation technologies, and
-  engineering practice is narrowed to the constraints in Principles
-  VIII–XIII. Data schemas and API endpoint designs stay out of scope.
-  Versioning and compliance review now cover architectural constraints.
+- Vocabulary: student and course entries expanded. programme,
+  inscription, and note unchanged.
+- Governance: domain invariants are business rules, not SQL schemas,
+  table definitions, indexes, or repository implementations.
 - Follow-up TODOs: none
 -->
 
@@ -25,14 +25,19 @@ who manage academic programmes, students, courses, and enrollments.
 Students are also primary users. A student may browse available courses
 and enroll in a course without administrative intervention.
 The service is built with Python 3.12, Flask, and SQLite.
-This constitution records that business context and the architectural
-constraints that govern the service.
+This constitution records that business context, the project-wide
+domain invariants, and the architectural constraints that govern the
+service.
 
 ## Core Principles
 
 ### I. Programme Membership
 
 Every student MUST belong to an existing programme.
+
+The student's reference to an existing programme is this rule. The
+student's identifier, required name, and required email address are
+Principle XIV. They do not replace this membership rule.
 
 Rationale: A student is a learner registered in a programme. A student
 record that names a missing programme is not a valid registration.
@@ -42,12 +47,20 @@ record that names a missing programme is not a valid registration.
 Every enrollment MUST reference an existing student and an existing
 course.
 
+An inscription is that enrollment and MUST reference an existing
+student and an existing course. This is the same rule, stated as a
+project-wide domain invariant. It does not prescribe a SQL schema, a
+table definition, an index, or a repository implementation.
+
 Rationale: An inscription records one student's enrollment in one
 course. Both the student and the course MUST already exist.
 
 ### III. Unique Course Enrollment
 
 A student MUST NOT enroll in the same course more than once.
+
+A student MUST NOT have more than one inscription for the same course.
+This is the same rule, not a second limit.
 
 Rationale: One inscription is the sole record of that student in that
 course. A second inscription for the same student and course is a
@@ -57,6 +70,8 @@ conflict.
 
 An enrollment MAY exist without a grade. Any assigned grade MUST be
 within the permitted range.
+
+An inscription MAY have no grade. This is the same rule.
 
 Rationale: A note is optional at enrollment time. When a note is
 assigned, it shows that student's grade in that course, and a value
@@ -167,11 +182,44 @@ clarified with the architect. It MUST NOT be decided autonomously.
 Rationale: These principles fix the boundaries that are already
 adopted. A question they leave open is an architect decision.
 
+### XIV. Student Identity
+
+A student MUST have an identifier, a name, and an email address. The
+name MUST be present. The email address MUST be present. The student
+MUST reference an existing programme, as Principle I requires.
+
+Student email addresses MUST be unique.
+
+These are domain invariants. They MUST NOT be read as a SQL schema, a
+table definition, an index, or a repository implementation.
+
+Rationale: A student without a name or an email address is not a
+complete registration. Two students MUST NOT share an email address.
+The programme reference remains the membership rule in Principle I.
+
+### XV. Course Identity
+
+A course MUST have an identifier, a course code, and a name. The course
+code MUST be present. The name MUST be present.
+
+Course codes MUST be unique. Course names are NOT required to be unique.
+
+These are domain invariants. They MUST NOT be read as a SQL schema, a
+table definition, an index, or a repository implementation.
+
+Rationale: The course code distinguishes one course from another. The
+name is required so the course can be recognized. Two courses MAY share
+a name when their codes differ.
+
 ## Domain Vocabulary
 
 - **programme**: An academic programme offered by the college.
-- **student**: A learner registered in a programme.
-- **course**: A course offered by the college.
+- **student**: A learner registered in a programme. A student has an
+  identifier, a required name, a required email address, and a
+  reference to an existing programme. Email addresses are unique.
+- **course**: A course offered by the college. A course has an
+  identifier, a required course code, and a required name. Course
+  codes are unique. Course names are not required to be unique.
 - **inscription**: A student's enrollment in a course.
 - **note**: The grade associated with an enrollment. It shows a
   student's grade in a course.
@@ -201,6 +249,11 @@ architecture, implementation technologies, and engineering constraints
 named in Principles VIII through XIII. It MUST NOT define data schemas
 or API endpoint designs.
 
+The domain invariants in Principles I through IV, XIV, and XV are
+business rules about students, courses, and inscriptions. They are not
+implementation instructions. They MUST NOT be treated as SQL schemas,
+table definitions, indexes, or repository implementations.
+
 An amendment MUST be written into this file, MUST state which
 principle, vocabulary entry, specification requirement, or
 architectural constraint changed, and MUST update the version and
@@ -210,8 +263,8 @@ Versioning follows semantic versioning:
 
 - MAJOR: remove or redefine an adopted business rule or an adopted
   architectural constraint.
-- MINOR: add a business rule, architectural constraint, vocabulary
-  entry, or specification requirement.
+- MINOR: add a business rule, domain invariant, architectural
+  constraint, vocabulary entry, or specification requirement.
 - PATCH: clarify wording without changing a rule.
 
 Each feature specification MUST be checked against the business
@@ -220,6 +273,8 @@ audience, the expected behaviour, the failure paths and user-facing
 error messages, and the explicit out-of-scope statement.
 
 Each design and implementation change MUST be checked against
-Principles VIII through XIII before it is accepted.
+Principles VIII through XIII before it is accepted. The same review
+MUST confirm that the domain invariants in Principles I through IV,
+XIV, and XV still hold.
 
-**Version**: 1.2.0 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-14
+**Version**: 1.3.0 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-14

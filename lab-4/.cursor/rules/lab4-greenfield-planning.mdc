@@ -1,0 +1,28 @@
+---
+description: Plan Lab 4 as a greenfield service and do not use Lab 3 as design input
+alwaysApply: true
+---
+
+# Lab 4 planning ignores Lab 3
+
+Lab 4 is a greenfield project. It shares the Git repository at
+`lasalle-web-services` with Lab 3. Shared history is not a design source.
+
+When planning Lab 4, including `/speckit-plan` and the artifacts it writes
+(`plan.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`):
+
+- Use the Lab 4 constitution, the feature spec, and files under `lab-4/` only.
+- Do not read, cite, or copy Lab 3 code, tests, schema, config, or docs.
+- Do not treat `lab-3/` paths, commits, or diffs as existing project conventions.
+
+```text
+# Use
+lab-4/.specify/memory/constitution.md
+lab-4/specs/<feature>/spec.md
+
+# Do not use
+lab-3/src/**
+lab-3/tests/**
+lab-3/README.md
+lab-3/pyproject.toml
+```
