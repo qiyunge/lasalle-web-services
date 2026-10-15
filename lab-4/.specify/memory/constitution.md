@@ -1,20 +1,21 @@
 <!--
 Sync Impact Report
-- Version change: 1.2.0 → 1.3.0
-- Modified principles (rules kept; added detail only):
-  - I. Programme Membership
-  - II. Enrollment References
-  - III. Unique Course Enrollment
-  - IV. Grade Within Permitted Range
+- Version change: 1.3.0 → 1.4.0
+- Modified principles (rule kept; added detail only):
+  - XII. Established Conventions (pytest is the demonstrated need for
+    that test dependency; other new dependencies still need their own)
 - Added principles:
-  - XIV. Student Identity
-  - XV. Course Identity
+  - XVI. Acceptance-Test Tasks
+  - XVII. Test-Driven Development
+  - XVIII. Branch Coverage
+  - XIX. HTTP Acceptance Verification
+  - XX. Completion Evidence
 - Added sections: none
 - Removed sections: none
-- Vocabulary: student and course entries expanded. programme,
-  inscription, and note unchanged.
-- Governance: domain invariants are business rules, not SQL schemas,
-  table definitions, indexes, or repository implementations.
+- Vocabulary: unchanged
+- Governance: task lists and completion claims are reviewed against
+  Principles XVI–XX. Versioning names engineering and quality
+  constraints.
 - Follow-up TODOs: none
 -->
 
@@ -26,8 +27,8 @@ Students are also primary users. A student may browse available courses
 and enroll in a course without administrative intervention.
 The service is built with Python 3.12, Flask, and SQLite.
 This constitution records that business context, the project-wide
-domain invariants, and the architectural constraints that govern the
-service.
+domain invariants, the architectural constraints, and the engineering
+and quality constraints that govern the service.
 
 ## Core Principles
 
@@ -171,6 +172,9 @@ External dependencies MUST remain minimal. A new architectural
 pattern, framework, or infrastructure component MUST NOT be introduced
 without a demonstrated need.
 
+pytest, required by Principle XVII, is a demonstrated need. Any other
+new dependency still requires its own demonstrated need.
+
 Rationale: The project already has an adopted shape. An extra pattern
 or dependency is justified only when that shape cannot meet the need.
 
@@ -211,6 +215,73 @@ Rationale: The course code distinguishes one course from another. The
 name is required so the course can be recognized. Two courses MAY share
 a name when their codes differ.
 
+### XVI. Acceptance-Test Tasks
+
+Every feature task list MUST include acceptance tests derived from that
+specification's acceptance scenarios. Those acceptance-test tasks MUST
+appear before the implementation tasks they verify.
+
+A feature task list that has no explicit automated test tasks is
+incomplete.
+
+Rationale: The scenarios in the specification are the behavior the
+feature must prove. Writing the proof after the implementation removes
+the chance to see the test fail first.
+
+### XVII. Test-Driven Development
+
+Implementation MUST follow this order: write a test first, observe it
+fail for the expected reason, implement the minimum behavior needed to
+pass, and then refactor while keeping the tests green.
+
+The automated testing framework MUST be pytest. The tests for a
+behavior MUST include each of the unit, integration, and HTTP levels
+that can observe that behavior. A level that cannot observe the
+behavior is not required for that behavior.
+
+Rationale: A test that is written after the code can pass without
+showing that it detects the missing behavior. pytest is the adopted
+runner. Each level is required only where it can see the behavior
+under test.
+
+### XVIII. Branch Coverage
+
+Completion MUST require 100% branch coverage of project-owned
+executable application code. Line coverage is informational only.
+
+Coverage MUST exclude third-party dependencies, test code, and
+generated code. Any further exclusion MUST be explicitly justified and
+documented.
+
+Rationale: Branch coverage shows that each decision outcome in
+project-owned code was executed. An undocumented exclusion would hide
+an untested branch.
+
+### XIX. HTTP Acceptance Verification
+
+After implementation, every user-facing HTTP behavior MUST be verified
+against the running application with reproducible curl commands. The
+task list MUST contain explicit tasks for those checks.
+
+Verification MUST cover successful behavior and the applicable failure
+outcomes from the specification.
+
+Rationale: Automated tests can pass against a test client while the
+running service still disagrees with the specification. The curl
+commands repeat the success and failure sentences against that service.
+
+### XX. Completion Evidence
+
+Completion MUST have recorded evidence of test execution, branch
+coverage, and the curl verification in Principle XIX.
+
+A feature MUST NOT be claimed complete solely because implementation
+code exists or because automated tests pass.
+
+Rationale: Code and a green test run do not show branch coverage or
+the running HTTP behavior. The recorded evidence is the completion
+gate.
+
 ## Domain Vocabulary
 
 - **programme**: An academic programme offered by the college.
@@ -246,8 +317,9 @@ notes, and of how the service is structured.
 Business principles, domain vocabulary, and feature-specification
 requirements remain in force. This constitution records the
 architecture, implementation technologies, and engineering constraints
-named in Principles VIII through XIII. It MUST NOT define data schemas
-or API endpoint designs.
+named in Principles VIII through XIII, and the engineering and quality
+constraints named in Principles XVI through XX. It MUST NOT define
+data schemas or API endpoint designs.
 
 The domain invariants in Principles I through IV, XIV, and XV are
 business rules about students, courses, and inscriptions. They are not
@@ -261,10 +333,11 @@ last-amended date in the same change.
 
 Versioning follows semantic versioning:
 
-- MAJOR: remove or redefine an adopted business rule or an adopted
-  architectural constraint.
+- MAJOR: remove or redefine an adopted business rule, architectural
+  constraint, or engineering or quality constraint.
 - MINOR: add a business rule, domain invariant, architectural
-  constraint, vocabulary entry, or specification requirement.
+  constraint, engineering or quality constraint, vocabulary entry, or
+  specification requirement.
 - PATCH: clarify wording without changing a rule.
 
 Each feature specification MUST be checked against the business
@@ -277,4 +350,11 @@ Principles VIII through XIII before it is accepted. The same review
 MUST confirm that the domain invariants in Principles I through IV,
 XIV, and XV still hold.
 
-**Version**: 1.3.0 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-14
+Each feature task list and each completion claim MUST be checked
+against Principles XVI through XX. The review MUST confirm the
+acceptance-test tasks and their order, the test-driven sequence, the
+pytest tasks, the branch-coverage evidence, the curl tasks and their
+results, and that completion is not claimed from code or a green test
+run alone.
+
+**Version**: 1.4.0 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-14
