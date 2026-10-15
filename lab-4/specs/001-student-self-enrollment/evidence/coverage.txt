@@ -1,0 +1,92 @@
+Command: python -m pytest -v
+Configured in pyproject.toml: --cov=college --cov-branch --cov-fail-under=100
+Scope: 100% branch coverage of project-owned executable code in the college package.
+Line coverage is informational.
+Excluded: third-party dependencies (not in source=college), test code (omit tests/*), generated code (none exists).
+Further exclusions: none. No pragma: no cover markers are used.
+
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/devuser/wsl-projects/lasalle-web-services/lab-4/.venv/bin/python
+rootdir: /home/devuser/wsl-projects/lasalle-web-services/lab-4
+configfile: pyproject.toml
+testpaths: tests
+plugins: cov-7.1.0
+collecting ... collected 46 items
+
+tests/integration/test_development_seed.py::test_development_seed_supports_the_manual_check PASSED [  2%]
+tests/integration/test_http_courses.py::test_lists_courses_by_code PASSED [  4%]
+tests/integration/test_http_courses.py::test_empty_course_list PASSED    [  6%]
+tests/integration/test_http_enrollment.py::test_enroll_returns_created_inscription PASSED [  8%]
+tests/integration/test_http_enrollment.py::test_missing_course PASSED    [ 10%]
+tests/integration/test_http_enrollment.py::test_duplicate_and_existing_note PASSED [ 13%]
+tests/integration/test_http_enrollment.py::test_not_registered PASSED    [ 15%]
+tests/integration/test_http_enrollment.py::test_student_without_a_programme PASSED [ 17%]
+tests/integration/test_http_enrollment.py::test_enroll_other_student PASSED [ 19%]
+tests/integration/test_http_enrollment.py::test_grade_attempt PASSED     [ 21%]
+tests/integration/test_http_enrollment.py::test_required_fields PASSED   [ 23%]
+tests/integration/test_http_enrollment.py::test_body_that_is_not_a_json_object PASSED [ 26%]
+tests/integration/test_inscription_concurrency.py::test_concurrent_enrollment_keeps_one_inscription PASSED [ 28%]
+tests/integration/test_inscription_concurrency.py::test_duplicate_insert_is_a_conflict_and_rolls_back PASSED [ 30%]
+tests/unit/test_browse_courses.py::test_every_course_is_shown_in_code_order PASSED [ 32%]
+tests/unit/test_browse_courses.py::test_course_outside_a_programme_is_shown PASSED [ 34%]
+tests/unit/test_browse_courses.py::test_already_enrolled_course_is_still_shown PASSED [ 36%]
+tests/unit/test_browse_courses.py::test_empty_catalog PASSED             [ 39%]
+tests/unit/test_browse_courses.py::test_course_without_code_or_name_is_not_shown PASSED [ 41%]
+tests/unit/test_enroll_student.py::test_student_enrolls_without_an_administrator PASSED [ 43%]
+tests/unit/test_enroll_student.py::test_programme_does_not_block_enrollment PASSED [ 45%]
+tests/unit/test_enroll_student.py::test_second_course_creates_a_separate_inscription PASSED [ 47%]
+tests/unit/test_enroll_student.py::test_missing_course PASSED            [ 50%]
+tests/unit/test_enroll_student.py::test_duplicate_leaves_existing_note_unchanged PASSED [ 52%]
+tests/unit/test_enroll_student.py::test_persistence_conflict_is_already_enrolled PASSED [ 54%]
+tests/unit/test_enroll_student.py::test_missing_student_is_not_registered PASSED [ 56%]
+tests/unit/test_enroll_student.py::test_incomplete_student_is_not_registered[student0] PASSED [ 58%]
+tests/unit/test_enroll_student.py::test_incomplete_student_is_not_registered[student1] PASSED [ 60%]
+tests/unit/test_enroll_student.py::test_incomplete_student_is_not_registered[student2] PASSED [ 63%]
+tests/unit/test_enroll_student.py::test_incomplete_student_is_not_registered[student3] PASSED [ 65%]
+tests/unit/test_enroll_student.py::test_missing_programme_is_not_registered PASSED [ 67%]
+tests/unit/test_enroll_student.py::test_incomplete_course_does_not_exist[course0] PASSED [ 69%]
+tests/unit/test_enroll_student.py::test_incomplete_course_does_not_exist[course1] PASSED [ 71%]
+tests/unit/test_enroll_student.py::test_incomplete_course_does_not_exist[course2] PASSED [ 73%]
+tests/unit/test_enroll_student.py::test_incomplete_course_does_not_exist[course3] PASSED [ 76%]
+tests/unit/test_enroll_student.py::test_enroll_other_student PASSED      [ 78%]
+tests/unit/test_enroll_student.py::test_same_student_id_is_self_enrollment PASSED [ 80%]
+tests/unit/test_enroll_student.py::test_note_is_a_grade_attempt[None] PASSED [ 82%]
+tests/unit/test_enroll_student.py::test_note_is_a_grade_attempt[A] PASSED [ 84%]
+tests/unit/test_enroll_student.py::test_grade_attempt_wins_over_enrolling_someone_else PASSED [ 86%]
+tests/unit/test_enroll_student.py::test_two_students_can_enroll_in_the_same_course PASSED [ 89%]
+tests/unit/test_enroll_student.py::test_missing_acting_student_id PASSED [ 91%]
+tests/unit/test_enroll_student.py::test_missing_course_id PASSED         [ 93%]
+tests/unit/test_enroll_student.py::test_ids_must_be_integers[overrides0] PASSED [ 95%]
+tests/unit/test_enroll_student.py::test_ids_must_be_integers[overrides1] PASSED [ 97%]
+tests/unit/test_enroll_student.py::test_ids_must_be_integers[overrides2] PASSED [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.3-final-0 ________________
+
+Name                                                             Stmts   Miss Branch BrPart  Cover   Missing
+------------------------------------------------------------------------------------------------------------
+src/college/__init__.py                                              0      0      0      0   100%
+src/college/adapters/__init__.py                                     0      0      0      0   100%
+src/college/adapters/inbound/__init__.py                             0      0      0      0   100%
+src/college/adapters/inbound/http.py                                23      0      4      0   100%
+src/college/adapters/outbound/__init__.py                            0      0      0      0   100%
+src/college/adapters/outbound/sqlite_course_repository.py           13      0      2      0   100%
+src/college/adapters/outbound/sqlite_inscription_repository.py      17      0      2      0   100%
+src/college/adapters/outbound/sqlite_programme_repository.py        10      0      2      0   100%
+src/college/adapters/outbound/sqlite_student_repository.py          10      0      2      0   100%
+src/college/adapters/outbound/sqlite_unit_of_work.py                18      0      2      0   100%
+src/college/app.py                                                  36      0      0      0   100%
+src/college/application/__init__.py                                  0      0      0      0   100%
+src/college/application/browse_courses.py                            3      0      0      0   100%
+src/college/application/enroll_student.py                           47      0     16      0   100%
+src/college/application/ports.py                                    15      0      0      0   100%
+src/college/domain/__init__.py                                       0      0      0      0   100%
+src/college/domain/course.py                                        10      0      0      0   100%
+src/college/domain/inscription.py                                    7      0      0      0   100%
+src/college/domain/programme.py                                      4      0      0      0   100%
+src/college/domain/student.py                                       11      0      0      0   100%
+------------------------------------------------------------------------------------------------------------
+TOTAL                                                              224      0     30      0   100%
+Required test coverage of 100% reached. Total coverage: 100.00%
+============================== 46 passed in 0.84s ==============================
+pytest exit status: 0

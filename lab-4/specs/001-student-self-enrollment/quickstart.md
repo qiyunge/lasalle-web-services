@@ -16,17 +16,17 @@ Stored fields are in [data-model.md](data-model.md).
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 `pyproject.toml` depends on Flask 3.1.3 and exposes the `college`
-package from `src/`. No other runtime dependency is required. SQLite and
-`unittest` come with Python 3.12.
+package from `src/`. The `dev` extra installs pytest and pytest-cov.
+No other runtime dependency is required. SQLite comes with Python 3.12.
 
 ## Automated validation
 
 ```bash
-python -m unittest discover -s tests -v
+python -m pytest -v
 ```
 
 Expected: every test passes. The suite uses an in-memory database and

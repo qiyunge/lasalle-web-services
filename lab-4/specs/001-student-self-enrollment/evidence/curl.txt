@@ -1,0 +1,60 @@
+Seed: python -c "from college.app import seed_development; seed_development('<tmp>/college.sqlite')"
+Server: flask --app "college.app:create_app('<tmp>/college.sqlite')" run --no-reload --host 127.0.0.1 --port 5000
+
+$ curl -sS -w '\nHTTP_STATUS:%{http_code}\n' http://127.0.0.1:5000/courses
+{"courses":[{"course_code":"CS101","id":1,"name":"Introduction to Computer Science"},{"course_code":"CS102","id":2,"name":"Introduction to Computer Science"}]}
+
+HTTP_STATUS:200
+
+$ curl -sS -w '\nHTTP_STATUS:%{http_code}\n' -X POST http://127.0.0.1:5000/inscriptions -H 'Content-Type: application/json' -d '{"acting_student_id": 1, "course_id": 1}'
+{"inscription":{"course_id":1,"id":1,"note":null,"student_id":1},"message":"You are enrolled in this course."}
+
+HTTP_STATUS:201
+
+$ curl -sS -w '\nHTTP_STATUS:%{http_code}\n' -X POST http://127.0.0.1:5000/inscriptions -H 'Content-Type: application/json' -d '{"acting_student_id": 1, "course_id": 1}'
+{"message":"You are already enrolled in this course."}
+
+HTTP_STATUS:409
+
+$ curl -sS -w '\nHTTP_STATUS:%{http_code}\n' -X POST http://127.0.0.1:5000/inscriptions -H 'Content-Type: application/json' -d '{"acting_student_id": 2, "course_id": 1}'
+{"inscription":{"course_id":1,"id":2,"note":null,"student_id":2},"message":"You are enrolled in this course."}
+
+HTTP_STATUS:201
+
+$ curl -sS -w '\nHTTP_STATUS:%{http_code}\n' -X POST http://127.0.0.1:5000/inscriptions -H 'Content-Type: application/json' -d '{"acting_student_id": 1, "course_id": 99}'
+{"message":"That course does not exist."}
+
+HTTP_STATUS:404
+
+$ curl -sS -w '\nHTTP_STATUS:%{http_code}\n' -X POST http://127.0.0.1:5000/inscriptions -H 'Content-Type: application/json' -d '{"acting_student_id": 9, "course_id": 2}'
+{"message":"Only a registered student can enroll in a course."}
+
+HTTP_STATUS:400
+
+$ curl -sS -w '\nHTTP_STATUS:%{http_code}\n' -X POST http://127.0.0.1:5000/inscriptions -H 'Content-Type: application/json' -d '{"acting_student_id": 1, "course_id": 2, "student_id": 2}'
+{"message":"You can only enroll yourself."}
+
+HTTP_STATUS:400
+
+$ curl -sS -w '\nHTTP_STATUS:%{http_code}\n' -X POST http://127.0.0.1:5000/inscriptions -H 'Content-Type: application/json' -d '{"acting_student_id": 1, "course_id": 2, "note": null}'
+{"message":"Students cannot assign, change, or remove a grade."}
+
+HTTP_STATUS:400
+
+$ curl -sS -w '\nHTTP_STATUS:%{http_code}\n' -X POST http://127.0.0.1:5000/inscriptions -H 'Content-Type: application/json' -d '{"course_id": 2}'
+{"message":"acting_student_id is required."}
+
+HTTP_STATUS:400
+
+$ curl -sS -w '\nHTTP_STATUS:%{http_code}\n' -X POST http://127.0.0.1:5000/inscriptions -H 'Content-Type: application/json' -d '{"acting_student_id": 1}'
+{"message":"course_id is required."}
+
+HTTP_STATUS:400
+
+$ curl -sS -w '\nHTTP_STATUS:%{http_code}\n' -X POST http://127.0.0.1:5000/inscriptions -H 'Content-Type: application/json' -d '{"acting_student_id": "1", "course_id": 2}'
+{"message":"acting_student_id and course_id must be integers."}
+
+HTTP_STATUS:400
+
+Stored inscriptions after the checks (student_id, course_id, note):
+[(1, 1, None), (2, 1, None)]

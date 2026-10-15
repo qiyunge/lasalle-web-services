@@ -46,15 +46,16 @@ new infrastructure without a demonstrated need.
 
 ## Tests
 
-**Decision**: `unittest` from the standard library. Integration tests
-use Flask's test client and an in-memory SQLite database.
+**Decision**: pytest. Integration tests use Flask's test client and an
+in-memory SQLite database. Branch coverage is measured with pytest-cov.
 
-**Rationale**: The slice needs automated proof of the acceptance
-scenarios. `unittest` adds no dependency. Flask's test client is part
-of the required web framework.
+**Rationale**: Constitution Principle XVII requires pytest. That
+requirement is the demonstrated need for this test dependency under
+Principle XII. The slice needs automated proof of the acceptance
+scenarios. Flask's test client is part of the required web framework.
 
-**Alternatives considered**: pytest. It is a new external dependency,
-and nothing in this slice requires it.
+**Alternatives considered**: `unittest` from the standard library. It
+adds no dependency, and it conflicts with Principle XVII.
 
 ## Layout
 

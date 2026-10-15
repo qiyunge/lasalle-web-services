@@ -1,0 +1,98 @@
+Red run before T009-T019 and T023-T025. Command:
+python -m pytest -p no:cacheprovider -o addopts= -q --tb=line --continue-on-collection-errors
+
+FFFFFFFFFFF                                                              [100%]
+==================================== ERRORS ====================================
+_________ ERROR collecting tests/integration/test_development_seed.py __________
+ImportError while importing test module '/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_development_seed.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/integration/test_development_seed.py:3: in <module>
+    from college.app import create_app, seed_development
+E   ImportError: cannot import name 'seed_development' from 'college.app' (/home/devuser/wsl-projects/lasalle-web-services/lab-4/src/college/app.py)
+______ ERROR collecting tests/integration/test_inscription_concurrency.py ______
+ImportError while importing test module '/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_inscription_concurrency.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/integration/test_inscription_concurrency.py:9: in <module>
+    from college.adapters.outbound.sqlite_inscription_repository import (
+E   ModuleNotFoundError: No module named 'college.adapters.outbound.sqlite_inscription_repository'
+______________ ERROR collecting tests/unit/test_browse_courses.py ______________
+ImportError while importing test module '/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/unit/test_browse_courses.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/test_browse_courses.py:3: in <module>
+    from college.application.browse_courses import browse
+E   ModuleNotFoundError: No module named 'college.application.browse_courses'
+______________ ERROR collecting tests/unit/test_enroll_student.py ______________
+ImportError while importing test module '/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/unit/test_enroll_student.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/test_enroll_student.py:5: in <module>
+    from college.application.enroll_student import enroll
+E   ModuleNotFoundError: No module named 'college.application.enroll_student'
+=================================== FAILURES ===================================
+E   assert 404 == 200
+     +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_http_courses.py:33: assert 404 == 200
+E   assert 404 == 200
+     +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_http_courses.py:45: assert 404 == 200
+E   assert 404 == 201
+     +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_http_enrollment.py:47: assert 404 == 201
+E   AssertionError: assert None == {'message': 'That course does not exist.'}
+     +  where None = get_json()
+     +    where get_json = <WrapperTestResponse streamed [404 NOT FOUND]>.get_json
+/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_http_enrollment.py:64: AssertionError: assert None == {'message': 'That course does not exist.'}
+E   assert 404 == 409
+     +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_http_enrollment.py:80: assert 404 == 409
+E   assert 404 == 400
+     +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_http_enrollment.py:93: assert 404 == 400
+E   assert 404 == 400
+     +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_http_enrollment.py:110: assert 404 == 400
+E   assert 404 == 400
+     +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_http_enrollment.py:122: assert 404 == 400
+E   assert 404 == 400
+     +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_http_enrollment.py:133: assert 404 == 400
+E   assert 404 == 400
+     +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_http_enrollment.py:143: assert 404 == 400
+E   assert 404 == 400
+     +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+/home/devuser/wsl-projects/lasalle-web-services/lab-4/tests/integration/test_http_enrollment.py:163: assert 404 == 400
+=========================== short test summary info ============================
+FAILED tests/integration/test_http_courses.py::test_lists_courses_by_code - a...
+FAILED tests/integration/test_http_courses.py::test_empty_course_list - asser...
+FAILED tests/integration/test_http_enrollment.py::test_enroll_returns_created_inscription
+FAILED tests/integration/test_http_enrollment.py::test_missing_course - Asser...
+FAILED tests/integration/test_http_enrollment.py::test_duplicate_and_existing_note
+FAILED tests/integration/test_http_enrollment.py::test_not_registered - asser...
+FAILED tests/integration/test_http_enrollment.py::test_student_without_a_programme
+FAILED tests/integration/test_http_enrollment.py::test_enroll_other_student
+FAILED tests/integration/test_http_enrollment.py::test_grade_attempt - assert...
+FAILED tests/integration/test_http_enrollment.py::test_required_fields - asse...
+FAILED tests/integration/test_http_enrollment.py::test_body_that_is_not_a_json_object
+ERROR tests/integration/test_development_seed.py
+ERROR tests/integration/test_inscription_concurrency.py
+ERROR tests/unit/test_browse_courses.py
+ERROR tests/unit/test_enroll_student.py
+11 failed, 4 errors in 0.44s
+pytest exit status: 1

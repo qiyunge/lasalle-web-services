@@ -32,7 +32,7 @@ this plan. Decisions are recorded in [research.md](research.md).
 **Storage**: SQLite via the standard-library `sqlite3` module. Domain
 invariants are not defined as tables or indexes.
 
-**Testing**: `unittest`, Flask's test client, and in-memory SQLite.
+**Testing**: pytest, Flask's test client, and in-memory SQLite.
 
 **Target Platform**: Local Python 3.12 web service.
 
@@ -73,7 +73,7 @@ technical context above.
 | IX. Domain independent of frameworks; use cases through ports; inbound and outbound adapters. | Pass. See the source layout below. |
 | X. Thin routes; no business rules in Flask or SQLite; repository ports; transactions preserve invariants. | Pass. The HTTP adapter parses the request, calls one use case, and maps that use case's outcome to HTTP. It does not decide eligibility or existence. Insert runs in one transaction. |
 | XI. Student, course, programme, and inscription stay bounded. | Pass. Cross-capability references are identifier values only. Repositories do not cross capabilities. Use cases do not call one another. |
-| XII. Existing conventions and minimal dependencies. | Pass. Lab 4 has no application code yet. Runtime additions are Flask, as required, plus standard-library `sqlite3` and `unittest`. |
+| XII. Existing conventions and minimal dependencies. | Pass. Lab 4 has no application code yet. Runtime additions are Flask, as required, plus standard-library `sqlite3`. pytest is the demonstrated test dependency required by Principle XVII. |
 | XIII. Unsettled design questions go to the architect. | Pass. Choices required to write the contract are recorded in research.md. The spec's sentences and out-of-scope list are unchanged. |
 | XIV. A student has an identifier, a required name, a required unique email address, and an existing programme. | Pass. The data model records those fields. This slice does not create students and does not prescribe a schema or index for email uniqueness. An incomplete student is not registered. |
 | XV. A course has an identifier, a required unique course code, and a required name. Names need not be unique. | Pass. Browse returns all three. This slice does not create courses and does not prescribe a schema or index for course-code uniqueness. |
