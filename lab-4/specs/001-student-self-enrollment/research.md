@@ -1,220 +1,303 @@
 # Research: Student Self-Enrollment
 
-Lab 4 is greenfield. This research uses the feature spec and Lab 4
-constitution 1.3.0 only. The shared Git repository also contains Lab 3;
-that tree was not read and is not a design source.
+Lab 4 already contains this slice. Research uses the accepted
+specification, constitution 2.0.4, and the current `lab-4/` code. The
+shared Git repository also contains Lab 3. That tree was not read and
+is not a design source.
 
-## Greenfield boundary
+## Existing service
 
-**Decision**: Plan this slice from `lab-4/` only.
+**Decision**: Reuse the current `college` package. Do not add a second
+application, a second persistence mechanism, or a parallel use case.
 
-**Rationale**: Lab 4 shares a Git repository with Lab 3, but it is a new
-service. Lab 3 conventions are not Lab 4 conventions.
+**Rationale**: Browse, self-enrollment, the FR-014 refusal order, the
+SQLite uniqueness conflict, and the HTTP mapping already exist.
+Constitution E2 and E3 require that established shape unless a rule is
+unmet.
 
-**Alternatives considered**: Reusing Lab 3 routes, schema, or packages.
-Rejected because that would import another lab's design.
+**Alternatives considered**: A new package or a rewrite of the ports.
+Both would replace working boundaries without a demonstrated need.
 
 ## Web framework
 
 **Decision**: Flask 3.1.3, with no Flask extensions.
 
-**Rationale**: The constitution requires Flask on Python 3.12. Flask
-3.1.3 (released 2026-02-18) is the current stable release and supports
-Python 3.9 and newer, including 3.12. Flask 3.2.0 is not a stable
-release. Extensions such as Flask-SQLAlchemy would add a framework
-between the application and SQLite.
+**Rationale**: Constitution E1 requires Flask on Python 3.12.
+`pyproject.toml` already pins Flask 3.1.3. The inbound adapter is the
+only production module that imports Flask, apart from the composition
+root.
 
-**Alternatives considered**: An unpinned Flask install, the unreleased
-3.2 line, or another web framework. The constitution names Flask, and
-an unpinned install can move without a decision.
+**Alternatives considered**: Another framework, an unpinned Flask
+install, or a Flask extension. E1 names Flask. An extension would add
+infrastructure the current adapter does not need.
 
 ## Persistence
 
-**Decision**: SQLite through the Python 3.12 standard-library `sqlite3`
-module. Repositories are the only persistence port. No ORM. Domain
-invariants stay in the domain and application layers. The adapter
-stores and loads values; it does not define the invariants and it does
-not choose user-facing sentences.
+**Decision**: SQLite through the standard-library `sqlite3` module.
+Outbound adapters implement the existing application ports. Domain
+modules do not import `sqlite3`.
 
-**Rationale**: The constitution requires SQLite and forbids business
-rules inside SQLite adapters. `sqlite3` is already in the runtime.
-Principles XIV and XV are domain rules, not table definitions or
-indexes.
+**Rationale**: E1 requires SQLite. `sqlite3` is already the runtime.
+A5 keeps rows and connections inside the outbound adapters.
 
-**Alternatives considered**: SQLAlchemy or Flask-SQLAlchemy. Both are
-new infrastructure without a demonstrated need.
+**Alternatives considered**: An ORM or a second database library. No
+demonstrated need under E3.
 
-## Tests
+## Tests and coverage
 
-**Decision**: pytest. Integration tests use Flask's test client and an
-in-memory SQLite database. Branch coverage is measured with pytest-cov.
+**Decision**: pytest and pytest-cov, as already configured.
+`addopts` measure branch coverage of the `college` package and fail
+under 100. Tests live in `tests/unit` and `tests/integration`. The
+Flask test client covers HTTP. A separate curl run covers the running
+process.
 
-**Rationale**: Constitution Principle XVII requires pytest. That
-requirement is the demonstrated need for this test dependency under
-Principle XII. The slice needs automated proof of the acceptance
-scenarios. Flask's test client is part of the required web framework.
+**Rationale**: Q2 requires pytest. Q4 requires branch coverage of new
+or modified business code, checked from branch-level data, and requires
+the overall result to stay at the baseline measured with this same
+scope. The configured fail-under is the project gate. The constitutional
+baseline remains that measured report, not a number copied into the
+constitution.
 
-**Alternatives considered**: `unittest` from the standard library. It
-adds no dependency, and it conflicts with Principle XVII.
+**Alternatives considered**: `unittest`, or a new coverage package.
+`unittest` conflicts with Q2. Another coverage tool would duplicate
+pytest-cov.
 
-## Layout
+## Layout and ports
 
-**Decision**: One Python package, `college`, in a `src` layout, split
-into `domain`, `application`, and `adapters`. Student, course,
-programme, and inscription each keep their own domain module and their
-own SQLite repository. Browse and enrollment use cases call ports.
-Flask routes live in one inbound adapter. `app.py` wires the concrete
-adapters.
+**Decision**: Keep `src/college` split into `domain`, `application`,
+and `adapters`, with `app.py` as the only production composition root.
+`browse` and `enroll` are the driving use-case contracts.
+`EnrollmentResult` is the enrollment outcome. Outbound capabilities stay
+on `ProgrammePort`, `StudentPort`, `CoursePort`, `InscriptionPort`, and
+`UnitOfWorkPort`.
 
-**Rationale**: The constitution requires hexagonal architecture,
-explicit ports, thin HTTP routes, and separate capabilities. Lab 4 has
-no existing application tree.
+**Rationale**: A1 requires a distinct domain and application. A3
+requires application-owned use cases and outbound ports. The functions
+already are the driving contracts, and only the inbound adapter calls
+them. A Protocol with one implementation would add no boundary. A6
+allows the application and the domain to share domain types.
 
-**Alternatives considered**: A flat `models/` and `services/` tree, or
-modules that import Flask and `sqlite3` directly. Both would place
-business rules next to the framework or the database.
+**Alternatives considered**: New driving-port Protocols, or DTOs that
+copy `Student`, `Course`, and `Inscription` inside the core. Neither
+separates a boundary that the current types fail to separate.
+
+## Boundary translation
+
+**Decision**: Translate at the inbound and outbound edges only.
+
+- The HTTP adapter turns a JSON object into `enroll` arguments and
+  turns `EnrollmentResult` or the browsed courses into JSON. It maps
+  `result.outcome` through the existing status table.
+- Each SQLite repository turns a `sqlite3.Row` into a domain entity.
+  `IntegrityError` becomes `PersistenceConflict` before it leaves the
+  inscription repository.
+- `Student`, `Course`, `Inscription`, and `EnrollmentResult` stay as
+  they are inside the core.
+
+**Rationale**: A4, A5, and A6 put translation where the representation
+changes. A Flask request and a SQLite row stay outside the core.
+
+**Alternatives considered**: Domain objects built in the route, or a
+response DTO inside `enroll`. The route would own business data, and
+the DTO would copy the outcome the use case already returns.
+
+## Transport validation and business refusal
+
+**Decision**: The inbound adapter owns request shape. The application
+owns FR-014.
+
+The adapter accepts a JSON object whose `acting_student_id` and
+`course_id` are integers. `True` and `False` are not integers. A body
+that is not an object is treated as an empty object. These failures
+use the sentences the service already returns:
+
+- `acting_student_id is required.`
+- `course_id is required.`
+- `acting_student_id and course_id must be integers.`
+
+Those sentences are transport outcomes. They are not part of FR-014
+and they are not authorization. The use-case precondition is that both
+identifiers are integers. From there `enroll` applies only this order:
+grade attempt, then enrolling someone else, then not a registered
+student, then the course does not exist, then already enrolled.
+
+A grade attempt is the first of those business rules. It is a
+well-formed request whose `note` key is present, including when the
+value is JSON null. The adapter's translation is `payload.get("note",
+ABSENT)`. It does not drop a present key, it does not treat JSON null
+as a missing field, and it does not choose the grade sentence. `enroll`
+returns outcome `forbidden` with "Students cannot assign, change, or
+remove a grade." The adapter maps that outcome to 400. The same status
+number is used for a shape failure. The status is not the decision.
+
+Inspection: the three shape checks and the grade check all still run
+inside `enroll`. The grade check is already in the application and
+already precedes the other-student check. The planned move is only the
+three shape sentences. The grade check stays in `enroll`.
+
+**Rationale**: The specification defines the five business refusals and
+their messages. It does not define request-shape messages. A4 makes the
+adapter translate the external request into the application input. B7
+and FR-011 keep the grade decision in the application. The existing
+sentences stay so the HTTP contract does not gain new wording.
+
+**Alternatives considered**: Treating a present `note` as a shape
+error. That would move authorization into the adapter. Inventing a new
+business message for a missing field. Leaving the shape checks inside
+`enroll`. The last keeps a transport decision in the use case.
 
 ## Identifiers and required text
 
-**Decision**: Identifiers are integers assigned by SQLite. A name, an
-email address, a course code, and a course name are present only when
-the stored value is a non-empty string. Email uniqueness and course-code
-uniqueness compare the stored value exactly. This slice does not trim,
-case-fold, or define a further email or course-code format.
+**Decision**: Identifiers are integers. A name, an email address, a
+course code, and a course name are present when the value is a string
+and it contains at least one character. Uniqueness compares the stored
+value exactly. This slice does not trim or case-fold text.
 
-**Rationale**: The constitution requires those values and their
-uniqueness. It does not define a string format or a normalization
-rule. Exact match is the uniqueness rule without an extra policy.
+**Rationale**: The specification states that presence rule and declines
+a trimming rule. B2 and B3 require uniqueness and do not define a
+format.
 
-**Alternatives considered**: UUIDs, a required email pattern, or
-case-insensitive email uniqueness. None of those is stated in the
-constitution or the spec.
+**Alternatives considered**: A pattern for email or course code, or
+case-insensitive email comparison. Neither is stated.
 
 ## Student and course records
 
 **Decision**: This slice does not create or edit programmes, students,
-or courses. A student used for enrollment must already have an
-identifier, a present name, a present email address, and a reference to
-an existing programme. A course that is browsed or enrolled in must
-already have an identifier, a present course code, and a present name.
-Two stored students must not share an email address. Two stored courses
-must not share a course code. Course names may be the same.
+or courses. Enrollment reads them. A registered student has an
+identifier, a nonempty name, a nonempty email address, and an existing
+programme. An existing course has an identifier, a nonempty course code,
+and a nonempty name. Anything short of that uses the specification
+sentence already adopted for that case: "Only a registered student can
+enroll in a course." or "That course does not exist."
 
-A student row that is missing, or whose name, email, or programme is
-missing, is not a registered student. Enrollment then fails with
-"Only a registered student can enroll in a course." A course row that
-is missing, or whose course code or name is missing, is not an existing
-course. Enrollment then fails with "That course does not exist."
+Email uniqueness and course-code uniqueness stay identity invariants.
+This slice has no student or course write path, so it adds no duplicate
+failure and no storage rule for those fields.
 
-**Rationale**: Constitution Principles I, XIV, and XV define a complete
-student and a complete course. The spec already uses those two
-sentences for an unregistered person and a missing course, and it does
-not add a new sentence for an incomplete record. The spec also leaves
-creating and maintaining students and courses out of scope, so this
-slice only reads records that already satisfy the invariants.
+**Rationale**: B1, B2, and B3 define the records. The specification
+maps incomplete records onto the existing sentences and puts catalogue
+maintenance out of scope.
 
-**Alternatives considered**: New error sentences for a blank email or a
-duplicate course code. That would add messages the spec does not state.
-A maintenance API for students and courses would implement work the
-spec puts out of scope.
+**Alternatives considered**: New sentences for a blank email or a
+duplicate course code. Those messages are not in the specification.
 
-## Course browse payload
+## Domain invariant checks
 
-**Decision**: Each browsed course includes its identifier, course code,
-and name. The list is ordered by course code ascending. An empty
-catalogue returns an empty list. The list is not filtered by programme
-or by an existing inscription.
+**Decision**: A2 is resolved in the target design by domain factories
+and by the dataclass constructors. `domain/result.py` holds `Success`,
+`Failure`, and `ConstructionError`. `Student.create`, `Course.create`,
+and `Inscription.create` return `Failure` for an invariant breach and
+do not raise. The matching `Student(...)`, `Course(...)`,
+`Inscription(...)`, and `Programme(...)` calls raise `ConstructionError`
+and do not return an entity. `Programme` has no factory. The current
+constructors do not implement this yet.
 
-**Rationale**: Principle XV says a course has those three values, and
-the name is what makes the course recognizable. The spec requires every
-existing course to be shown. Ordering by the unique course code makes
-the list stable.
+`InvalidStudent` and `InvalidCourse` carry the row identifier and no
+user-facing sentence. `Missing` is the port value for no row. The
+SQLite adapter calls the factory and returns that `Result`. It does
+not choose the specification sentence. `enroll` maps a missing or
+invalid student, and a missing programme, to the existing
+not-registered sentence. It maps a missing or invalid course to the
+existing missing-course sentence. FR-014 order is unchanged.
 
-**Alternatives considered**: Returning only the identifier. That would
-hide the course code and name the constitution requires. Filtering by
-the student's programme would violate the spec.
+`list_all` returns `CourseList`: the valid courses and one
+`InvalidCourse` for every row the factory refuses. The repository does
+not drop those rows. `browse` keeps both parts. HTTP shows `courses`
+only.
+
+Email and course-code uniqueness stay collection rules without a write
+path. Programme existence stays an application lookup. A restored
+inscription note is not rejected for range. `Failure(InvalidInscription)`
+is an internal integrity failure. Outcome `integrity` maps to HTTP 500
+and "Stored inscription data is invalid." `enroll` calls `rollback`
+and does not insert. That path is not an FR-014 refusal.
+
+**Rationale**: A2 requires the owning model to enforce the invariant on
+every public construction path. A7 requires the application to decide
+what a missing or invalid record means. A5 keeps the row in the
+adapter. Decision item 1 of this revision forbids exceptions for
+expected validation and data recovery. Decision item 5 forbids a silent
+skip in `list_all`.
+
+**Alternatives considered**: Using `ConstructionError` for a row the
+repository restored. Recovery stays on `Result`. The constructor raises
+only when that public path is called with an invalid value. Leaving
+`has_identity` as a report on an invalid entity. That does not enforce
+construction. Skipping invalid courses inside the repository. That
+drops the diagnostic before the application can see it. A second
+field-for-field DTO. The port already returns the domain entity or the
+domain failure. Adding `Programme.create`. A programme has no invalid
+text, so the identifier check on `Programme(...)` is enough.
+
+## Course browse
+
+**Decision**: Browse shows every course the domain factory accepts.
+Each shown item carries `id`, `course_code`, and `name`. The
+application result also keeps `InvalidCourse` diagnostics from
+`CourseList`. Those diagnostics are not a field of `GET /courses`.
+The list is not filtered by programme or by an existing inscription.
+The current sort by `course_code` stays presentation for the valid
+courses. The specification requires the set, and it states that
+display order is not a business rule.
+
+**Rationale**: FR-001 through FR-003 and the browse scenarios define
+the set and the fields. The out-of-scope list excludes order. The
+current sort remains because E2 says to reuse the implementation.
+Existing tests that lock the sort stay. They are narrower than the
+specification allows, and this plan does not remove them.
+
+**Alternatives considered**: Treating the sort as a specification rule,
+or changing the order. The specification excludes the first. The second
+would change current behavior for no business requirement.
 
 ## Acting student
 
-**Decision**: Enrollment requests carry `acting_student_id`. The service
-does not define login, sessions, or tokens. Browse does not take a
-student identifier and does not filter the catalogue.
+**Decision**: `POST /inscriptions` carries `acting_student_id`. The
+service does not define login, sessions, or tokens. `GET /courses`
+does not take a student identifier.
 
-**Rationale**: The spec says the acting student is already known and
-that recognition is out of scope. Enrollment must still know who is
-acting. Browse defines no failure message for an unknown caller, and
-visibility does not depend on the student.
+**Rationale**: The specification says recognition is out of scope and
+that browse shows every existing course.
 
-**Alternatives considered**: A session cookie or an authentication
-header. That would design the recognition mechanism the spec leaves
-out.
+**Alternatives considered**: A session or an authentication header.
+That would specify the recognition mechanism the specification excludes.
 
-## Grade attempts
+## Grade attempts and enrollment target
 
-**Decision**: Omitting `note` creates an inscription with no grade.
-Sending the `note` key, with any value including null, is an attempt to
-assign, change, or remove a grade. The attempt is refused, and nothing
-is written.
+**Decision**: Omitting `note` is the successful enrollment, and the
+created inscription has no grade. A present `note` key, including JSON
+null, is application authorization: the first FR-014 rule. It is not a
+request-shape failure. Omitting `student_id`, or sending the acting
+student's own id, enrolls the acting student. A different `student_id`
+is an attempt to enroll someone else, decided by `enroll`. The course
+is selected by `course_id`.
 
-**Rationale**: This slice has no grade-management operation. A present
-key is the attempt. A missing key is the success case required by the
-spec and by Principle IV.
+**Rationale**: The specification requires those two refusals and a
+grade-free inscription. It does not define the JSON encoding. The
+current contract is the encoding this service already uses. The adapter
+preserves key presence. The use case chooses the sentence.
 
-**Alternatives considered**: A grade route that only refuses, or
-treating JSON null as a successful enrollment. The first looks like
-grade management. The second hides an explicit removal attempt.
+**Alternatives considered**: A separate grade route, or enrollment by
+course code. The first is grade management. The second adds a key the
+inscription does not use.
 
-## Enrollment target
+## Refusal precedence
 
-**Decision**: The inscription is for `acting_student_id` unless the body
-also includes `student_id`. The same `student_id` as the acting student
-is still self-enrollment. A different `student_id` is refused with
-"You can only enroll yourself." and writes nothing. The course is
-chosen by `course_id`, which is the course identifier. The course code
-is displayed on browse; it is not a second enrollment key.
+**Decision**: Business precedence is the clarified FR-014 order. The
+first match wins, and the attempt writes nothing. Transport shape is
+decided before `enroll` and is not ranked against those five rules.
 
-**Rationale**: The spec requires a testable refusal when the acting
-student names someone else. The inscription references the course
-identifier. The course code remains the unique code from Principle XV.
+**Rationale**: The 2026-10-15 clarification fixed the business order.
+The specification does not rank transport failures among those rules.
+An unusable identifier never becomes a business attempt.
 
-**Alternatives considered**: Enrolling by course code instead of course
-id. The constitution gives the course both an identifier and a code.
-The inscription rule references the course, and the request already
-uses the identifier.
-
-## Refusal order
-
-**Decision**: Apply the first matching refusal and stop.
-
-1. `acting_student_id` or `course_id` is missing or not an integer.
-2. `note` is present.
-3. `student_id` is present and differs from `acting_student_id`.
-4. The acting student is missing, the name is missing, the email
-   address is missing, or the student's programme is missing.
-5. The course is missing, the course code is missing, or the course
-   name is missing.
-6. An inscription already exists for that student and course.
-
-Missing required fields use "acting_student_id is required.",
-"course_id is required.", or "acting_student_id and course_id must be
-integers." Those are contract errors, not spec business sentences.
-Later refusals use the exact spec sentences.
-
-Programme mismatch with a course is not a failure. This slice stores no
-enrollment period, capacity, prerequisite, or availability.
-
-**Rationale**: The spec states each sentence and does not state which
-sentence wins when one request matches more than one rule. One fixed
-order is testable. Incomplete students and courses use the spec
-sentences already adopted for "not registered" and "course does not
-exist."
-
-**Alternatives considered**: Leaving the winner unspecified, or
-inventing a combined message.
+**Alternatives considered**: A combined message, or ranking a missing
+field inside FR-014. The clarification chose one message. The
+specification does not list the shape checks as business rules.
 
 ## HTTP status mapping
 
-**Decision**:
+**Decision**: Keep the current outcome map.
 
 | Outcome | Status |
 | --- | --- |
@@ -223,58 +306,92 @@ inventing a combined message.
 | Missing or non-integer required field | 400 |
 | Grade attempt | 400 |
 | Enrollment for another student | 400 |
-| Acting person is not a registered student | 400 |
+| Person is not a registered student | 400 |
 | Course does not exist | 404 |
 | Already enrolled | 409 |
+| Stored inscription cannot be constructed | 500 |
 
-Success enrollment returns the created inscription: its id, student id,
-course id, and `note: null`. There is no endpoint that lists a
-student's inscriptions.
+The 201 body includes the created inscription: `id`, `student_id`,
+`course_id`, and `note: null`. There is no inscriptions list.
 
-**Rationale**: The spec fixes the sentences and does not fix status
-codes. 201 distinguishes creation from the course list. 404 and 409
-distinguish a missing course from a conflicting inscription. The other
-refusals share 400 because this slice has no authentication scheme.
-Returning the created inscription lets the success scenario be checked
-without a read API the spec places out of scope.
+**Rationale**: The specification fixes the business sentences and the
+persisted inscription. It does not fix status codes. The current map
+distinguishes creation, a missing course, and a conflicting
+inscription. The 500 outcome is an integrity failure, not one of those
+business results. Its message is defined by this contract and is not
+added to the specification. The 201 body makes the new inscription
+observable. SC-001 does not add a read endpoint. A later duplicate
+refusal observes that the same inscription persisted.
 
-**Alternatives considered**: 403 for the authority refusals. 403
-suggests an authentication scheme this slice does not have.
+**Alternatives considered**: 403 for authority refusals, or a list of
+inscriptions. 403 implies an authentication scheme this feature does
+not have. A list is out of scope.
 
 ## Transaction and uniqueness
 
-**Decision**: The uniqueness rule has three separate duties.
+**Decision**: Keep one enrollment transaction on one connection.
 
-- The business layer owns the rule. A student MUST NOT have more than
-  one inscription for the same course. The application use case checks
-  that rule before it asks persistence to insert.
-- The database provides an atomic persistence guarantee against a
-  concurrent duplicate. Rolling back a conflicting insert does not
-  move the business rule into the adapter, and it does not define the
-  rule as a schema, an index, or a repository policy.
-- The application interprets a recognized persistence conflict. The
-  adapter exposes that conflict and does not decide the business
-  outcome. The use case maps it to the already-enrolled result.
+`enroll` opens `unit_of_work`, loads the student, programme, and course,
+looks for an inscription, and inserts only when every business check
+passes. `SqliteUnitOfWork` runs `BEGIN IMMEDIATE`, commits when the
+block finishes, and rolls back when it raises. `PersistenceConflict` is
+handled outside that block, so the rollback runs before the use case
+maps the conflict to "You are already enrolled in this course."
 
-Creating an inscription runs in one SQLite transaction: load the acting
-student and programme, load the course, look for an existing
-inscription, then insert. Any refusal rolls back. If a concurrent
-insert conflicts, the transaction rolls back, the adapter reports the
-persistence conflict, and the use case applies the already-enrolled
-result. The prior inscription, including any stored note, stays
-unchanged.
+The business layer owns the one-inscription rule and checks it before
+insert. `UNIQUE (student_id, course_id)` is the existing atomic
+guarantee for overlapping attempts. The repository translates
+`IntegrityError` into `PersistenceConflict` and does not choose the
+message. The use case does.
 
-Email uniqueness and course-code uniqueness are domain invariants on
-records this slice does not create. This slice does not add a write
-path, a table definition, or an index prescription for them.
+Browse uses a separate read connection and does not start this write
+transaction.
 
-**Rationale**: Principle X requires the transaction to preserve
-invariants. Principle III is the one-inscription rule. Principles XIV
-and XV forbid treating those identity rules as storage design, and the
-spec leaves student and course maintenance out of scope.
+Email and course-code uniqueness are not given a new write path or a
+new storage constraint in this slice.
 
-**Alternatives considered**: Implementing email and course-code
-uniqueness as SQL indexes in this slice, or checking the duplicate
-inscription only inside the SQLite adapter. The first is a storage
-design for data this slice does not write. The second would place the
-business rule in the adapter.
+**Rationale**: A7 requires the use case to preserve the invariant across
+the write, and requires the adapter to report the persistence fact
+without making the business decision. B4 is the one-inscription rule.
+The current unique pair is what makes the overlapping case atomic.
+
+**Alternatives considered**: Catching `IntegrityError` in the use case,
+checking the duplicate only in SQLite, or adding email and course-code
+indexes. The first leaks a SQLite error into the core. The second hides
+the business rule in the adapter. The third is storage design for
+records this feature does not write.
+
+## Static checks
+
+**Decision**: Do not add a linter or a type checker.
+
+**Rationale**: None is configured. Q3 says that the principle adds no
+tool, and that a missing tool means there is no configured check to
+run. E3 still requires a demonstrated need before a new dependency.
+The planning request asked for both checks. That request does not amend
+Q3.
+
+**Alternatives considered**: Adding Ruff or mypy in this plan. Either
+would be a new dependency chosen without a project decision.
+
+## Running verification
+
+**Decision**: pytest is the planned automated gate. curl against the
+running service is the planned HTTP gate. A 201 body followed by the
+already-enrolled refusal is the planned SC-001 persistence check. No
+permanent per-cycle log is required.
+
+On 2026-10-15 this review executed pytest with branch coverage: 46
+passed, 30 branches, 0 missing, plus a warning that module `college`
+was previously imported and not measured. That run is not the Q4
+baseline. Curl was not executed in this review. Q4 and Q5 are not
+passed.
+
+**Rationale**: Q5 separates curl from the Flask test client. Q6 makes
+the completion report the evidence. E5 requires Red and Green to be
+seen during execution when behavior changes, and existing tests before
+and after when behavior stays.
+
+**Alternatives considered**: Treating the test client as the HTTP gate,
+or storing a log file per cycle. Q5 declines the first. Q6 declines the
+second unless a request asks for a file.
