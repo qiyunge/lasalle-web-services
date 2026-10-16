@@ -4,9 +4,9 @@
 
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/, quickstart.md
 
-**Tests**: Required. Genuinely new or changed behavior is Red, then Green, then Refactor. A Red task is done only after the new test has been run and has failed for the missing behavior. A Green task is done only after that same test has been run and passed. A test that passes on its first run is not a Red cycle. Do not change production code to force that failure. FR-014 combination coverage is characterization: run it and record the natural result. Do not delete, weaken, skip, or exclude a test to make a run pass.
+**Tests**: Vertical slices. Each changed behavior starts with an acceptance test from `spec.md` and `contracts/student-self-enrollment.md`. Implementation then moves from `src/college/adapters/inbound/http.py` through `src/college/application/enroll_student.py` toward domain code and outbound adapters, and only as far as that slice needs. Constitution E5 applies inside every slice. For new or changed behavior: Red, run the test and confirm it fails for the stated reason; Green, the minimum change that makes it pass while accepted tests stay passing; Refactor, structure only, then run that slice's tests again. A test that still describes accepted behavior stays. A test that expects "You can only enroll yourself." does not. Do not add authentication. Do not change the specification or the constitution.
 
-**Organization**: Brownfield. The current `src/college/` service and `tests/` stay. Tasks add the finalized plan on top of that behavior.
+**Organization**: Setup, a baseline of still-accepted tests, User Story 1 slices, User Story 2, then the architecture, coverage, Ruff, Pyright, and running-service gates.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -16,137 +16,151 @@
 
 ## Path Conventions
 
+- Production code: `src/college/`
+- Tests: `tests/unit/`, `tests/integration/`
 - Paths are relative to `lab-4/`
-- Application code is under `src/college/`
-- Tests are under `tests/unit/` and `tests/integration/`
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Confirm the existing suite before any behavior change
+**Purpose**: Record the approved static-check configuration. Do not change business rules.
 
-- [x] T001 Run `python -m pytest -v` from `lab-4/` against the existing `tests/` and `src/college/` tree and confirm it passes before any edit. Do not modify `src/`, `tests/`, `pyproject.toml`, or the specification.
+- [ ] T001 Add Ruff and Pyright to the dev extra in `pyproject.toml`. Set `[tool.ruff] src = ["src/college"]` and `[tool.ruff.lint] select = ["E4", "E7", "E9", "F"]`. Set `[tool.pyright] include = ["src/college"]` and `typeCheckingMode = "basic"`. Leave versions unpinned. Do not switch Pyright to strict. Do not select more Ruff rules. Do not install the packages in this task.
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: `Result` and constructor enforcement. This phase does not switch the outbound port contracts.
+**Purpose**: Confirm the tests that still match the specification before any slice changes behavior.
 
-**⚠️ CRITICAL**: User story work waits until T011 has passed. T011 is not a full-suite checkpoint. After the constructors enforce invariants, some existing tests error because they still build an invalid entity or load an invalid row. Leave those tests in place until the migration tasks name them.
+**⚠️ CRITICAL**: No slice starts until T002 has passed.
 
-### Red
+- [ ] T002 From `lab-4/`, run the still-accepted enrollment and browse tests: `test_enroll_returns_created_inscription`, `test_student_enrolls_without_an_administrator`, `test_programme_does_not_block_enrollment`, `test_second_course_creates_a_separate_inscription`, `test_two_students_can_enroll_in_the_same_course`, `test_missing_course`, `test_incomplete_course_does_not_exist`, `test_duplicate_leaves_existing_note_unchanged`, `test_duplicate_and_existing_note`, `test_persistence_conflict_is_already_enrolled`, `test_concurrent_enrollment_keeps_one_inscription`, `test_missing_student_is_not_registered`, `test_incomplete_student_is_not_registered`, `test_missing_programme_is_not_registered`, `test_not_registered`, `test_student_without_a_programme`, `test_grade_attempt_wins_over_an_unregistered_student`, `test_grade_attempt_wins_over_a_missing_course`, `test_grade_attempt_wins_over_an_existing_inscription`, `test_unregistered_student_wins_over_a_missing_course`, `test_missing_course_wins_over_an_existing_inscription`, `test_invalid_stored_inscription_is_an_integrity_failure`, and `test_invalid_stored_inscription_is_internal_failure`, plus `tests/unit/test_browse_courses.py` and `tests/integration/test_http_courses.py`. Confirm they pass. Do not require `test_enroll_other_student`, `test_same_student_id_is_self_enrollment`, `test_grade_attempt_wins_over_enrolling_someone_else`, or `test_enrolling_someone_else_wins_over_*` to pass. Do not edit `src/college/` in this task.
 
-- [x] T002 [P] Write failing tests in `tests/unit/test_student_factory.py`. `Student.create` with an empty or missing name, or an empty or missing email, returns `Failure(InvalidStudent)` and does not raise. `id` and `programme_id` must be integers. Name and email must be nonempty strings. `Student(1, "", "ada@college.test", 1)` raises `ConstructionError` and does not return a student. A valid `create` returns `Success` holding a `Student`. Run this file and confirm it fails because that construction path does not yet enforce the invariant.
-
-- [x] T003 [P] Write failing tests in `tests/unit/test_course_factory.py`. `Course.create` returns `Failure(InvalidCourse)` when `id` is not an integer or when course code or name is not a nonempty string, and it does not raise. `Course(10, "", "Introduction")` raises `ConstructionError` and does not return a course. A valid `create` returns `Success` holding a `Course`. Run this file and confirm it fails because that construction path does not yet enforce the invariant.
-
-- [x] T004 [P] Write failing tests in `tests/unit/test_programme.py`. `Programme(1)` returns a programme. `Programme(None)` raises `ConstructionError` and does not return a programme. Do not add an `InvalidProgramme` outcome or a `Programme.create` factory. Run this file and confirm the invalid call does not yet fail closed.
-
-- [x] T005 [P] Write failing tests in `tests/unit/test_inscription_factory.py`. `Inscription.create` returns `Failure(InvalidInscription)` and does not raise when `id`, `student_id`, or `course_id` is not an integer, or when `note` is neither `None` nor a string. `note` of `None` or `"A"` is valid. The factory does not check that the student or the course exists and does not apply a grade range. The same invalid arguments passed to `Inscription(...)` raise `ConstructionError` and do not return an inscription. Run this file and confirm it fails because that construction path does not yet enforce the invariant.
-
-### Green
-
-- [x] T006 Add `Success`, `Failure`, and `ConstructionError` in `src/college/domain/result.py`, using the standard library only. `Success` carries the entity. `Failure` carries one error value and no user-facing sentence. Do not implement the entity checks in this task.
-
-- [x] T007 [P] Implement `Student.create` and `Student.__post_init__` in `src/college/domain/student.py` so T002 passes. `create` returns `Failure` without raising. It calls the constructor only after the value is valid. The constructor raises `ConstructionError` for the same breach.
-
-- [x] T008 [P] Implement `Course.create` and `Course.__post_init__` in `src/college/domain/course.py` so T003 passes. Use the same `Failure` versus `ConstructionError` split as `Student`.
-
-- [x] T009 [P] Enforce `id` is an integer in `Programme.__post_init__` in `src/college/domain/programme.py` so T004 passes. Do not add a factory or a `Result` failure type for a programme.
-
-- [x] T010 [P] Implement `Inscription.create` and `Inscription.__post_init__` in `src/college/domain/inscription.py` so T005 passes. A stored grade string remains valid.
-
-- [x] T011 Run `tests/unit/test_student_factory.py`, `tests/unit/test_course_factory.py`, `tests/unit/test_programme.py`, and `tests/unit/test_inscription_factory.py` and confirm they pass. Do not use `python -m pytest` as this task's gate. These existing tests may now error, and they stay unchanged until the task that names them: incomplete student and course cases in `tests/unit/test_enroll_student.py` (T015), the incomplete-course case in `tests/unit/test_browse_courses.py` (T026), and the blank `course_code` row in `tests/integration/test_http_courses.py` (T026). Do not delete, skip, weaken, or exclude them, and do not add a pytest ignore.
-
-**Checkpoint**: The four new factory files pass. The full suite is not green yet. The get/find migration in User Story 1 is the next work, and it does not end with a full-suite pass.
+**Checkpoint**: Accepted enrollment and browse tests are green. The self-only refusal tests are outside this baseline.
 
 ---
 
 ## Phase 3: User Story 1 - Enroll in a course (Priority: P1) 🎯 MVP
 
-**Goal**: A registered student enrolls without an administrator. Refusals keep the FR-014 order and the existing sentences. An invalid stored inscription is an integrity failure, not a business refusal.
+**Goal**: A registered acting student enrolls in an existing course. The inscription belongs to that acting student, has no grade, and is persisted. The acting student comes from the trusted caller context.
 
-**Independent Test**: With one registered student and one existing course, enrollment returns "You are enrolled in this course." and one grade-free inscription. Each single refusal returns its existing sentence and writes nothing. Combined business refusals return the earliest FR-014 sentence and write nothing. `Failure(InvalidInscription)` rolls back and returns HTTP 500. Run the enrollment files named in T024. Browse tests are not this story's gate.
+**Independent Test**: With one registered student whose programme has a nonempty name, and one existing course, a request with no target-student field and no `note` returns "You are enrolled in this course." and one grade-free inscription for that acting student.
 
-### Migration: get/find port, adapters, and enroll
+### Slice US1-A — Successful self-enrollment
 
-T013, T014, and T015 are one migration. The port signatures, the production adapters that implement them, and `enroll` plus its unit-test fakes all agree before any later task treats the suite as green. No task in this migration is complete because `python -m pytest` passed. `CoursePort.list_all` stays on its current return value until User Story 2.
+Specification User Story 1 scenarios 1 and 4. FR-004, FR-005, FR-006.
 
-#### Red
+- [ ] T003 [US1] Acceptance: run `test_enroll_returns_created_inscription` in `tests/integration/test_http_enrollment.py` and `test_student_enrolls_without_an_administrator` in `tests/unit/test_enroll_student.py`. The request omits `note` and any target-student field. The inscription names the acting student and the course, has no grade, and the message is "You are enrolled in this course." No administrator step exists in `src/college/adapters/inbound/http.py` or `src/college/application/enroll_student.py`. If they pass, stop with no production change. If one fails, Green from `src/college/adapters/inbound/http.py` inward; Refactor; re-run both tests.
 
-- [x] T012 [US1] Add failing repository tests in `tests/integration/test_persisted_records.py`. A stored student with an empty name makes `SqliteStudentRepository.get` return `Failure(InvalidStudent)`, not a `Student`. A missing student row returns `Failure(Missing)`. A stored course with an empty course code makes `SqliteCourseRepository.get` return `Failure(InvalidCourse)`. `SqliteProgrammeRepository.get` returns `Success(Programme)` or `Failure(Missing)` and constructs `Programme(id)` with no factory. When `Inscription.create` would fail, `SqliteInscriptionRepository.find` returns that `Failure` unchanged. Run the file and confirm it fails because the repositories still build unchecked entities.
+### Slice US1-B — Programme does not block enrollment
 
-#### Port, adapters, then consumer
+Specification User Story 1 scenarios 2 and 5. FR-012.
 
-- [x] T013 [US1] In `src/college/application/ports.py`, add `Missing` and the `CourseList` type. `Missing` means no row. `CourseList` holds the valid `Course` entities and the `InvalidCourse` diagnostics from one read, without copying course fields into another object. `StudentPort.get` and `CoursePort.get` return `Success(entity)`, `Failure(Missing)`, or `Failure(InvalidStudent)` / `Failure(InvalidCourse)`. `ProgrammePort.get` returns `Success(Programme)` or `Failure(Missing)`. `InscriptionPort.find` returns `Success(Inscription)`, `Failure(Missing)`, or `Failure(InvalidInscription)`. Leave `CoursePort.list_all` returning its current collection until T026. Do not run the full suite. This task is incomplete until T014 and T015 have landed.
+- [ ] T004 [US1] Acceptance: run `test_programme_does_not_block_enrollment` in `tests/unit/test_enroll_student.py`. Do not add an enrollment period, a capacity limit, a prerequisite, or a course availability status to `src/college/domain/course.py` or `src/college/application/enroll_student.py`. If it passes, stop with no production change. If it fails, Green from `src/college/application/enroll_student.py` inward; Refactor; re-run that test.
 
-- [x] T014 [US1] Change `get` in `src/college/adapters/outbound/sqlite_student_repository.py`, `src/college/adapters/outbound/sqlite_programme_repository.py`, and `src/college/adapters/outbound/sqlite_course_repository.py`, and change `find` in `src/college/adapters/outbound/sqlite_inscription_repository.py`, so T012 passes. A missing row is `Failure(Missing)`. A present student, course, or inscription row is the factory `Result`, returned unchanged. A programme row is `Programme(id)`. Do not choose a user-facing sentence in these files. Leave `list_all` unchanged. Run only `tests/integration/test_persisted_records.py` and confirm it passes. Do not run the full suite. `tests/integration/test_http_courses.py` may still error on the blank `course_code` row because `list_all` still constructs a `Course`. Leave that test unchanged.
+### Slice US1-C — Another course, and two students in one course
 
-- [x] T015 [US1] Update `src/college/application/enroll_student.py` and the fakes in `tests/unit/test_enroll_student.py` so an incomplete stored student or course is a `Failure` from the port, not an invalid constructed entity. Keep every existing assertion, including "Only a registered student can enroll in a course." and "That course does not exist." Map `Failure(Missing)` and `Failure(InvalidStudent)`, and a missing programme, to "Only a registered student can enroll in a course." Map `Failure(Missing)` and `Failure(InvalidCourse)` to "That course does not exist." Map `Success(Inscription)` to "You are already enrolled in this course." `Failure(Missing)` from `find` still continues to `add`. Do not implement outcome `integrity` in this task. Do not edit `tests/unit/test_browse_courses.py` or `tests/integration/test_http_courses.py`. Run `tests/unit/test_enroll_student.py`, `tests/integration/test_http_enrollment.py`, `tests/integration/test_persisted_records.py`, `tests/integration/test_development_seed.py`, and `tests/integration/test_inscription_concurrency.py`. Do not require the full suite, and do not exclude the browse tests that still fail.
+Specification User Story 1 scenarios 3 and 6. FR-013.
 
-### Characterization and gap verification
+- [ ] T005 [US1] Acceptance: run `test_second_course_creates_a_separate_inscription` and `test_two_students_can_enroll_in_the_same_course` in `tests/unit/test_enroll_student.py`. If they pass, stop with no production change. If one fails, Green from `src/college/application/enroll_student.py` inward; Refactor; re-run both tests.
 
-- [x] T016 [US1] Add combination tests to `tests/unit/test_enroll_student.py` and run them. This task is characterization and gap verification of the refusal order, not a Red task. One attempt that matches more than one rule returns only the earliest sentence and writes nothing. The order is a grade attempt ("Students cannot assign, change, or remove a grade."); then enrolling someone else ("You can only enroll yourself."); then the person is not a registered student ("Only a registered student can enroll in a course."); then the course does not exist ("That course does not exist."); then the student is already enrolled ("You are already enrolled in this course."). Cover a grade attempt combined with each later rule, enrolling someone else combined with each later rule, an unregistered student combined with a missing course, and a missing course combined with an existing inscription for that pair. Keep the existing grade-over-other-student test. Record whether the run passes or fails. Do not modify `src/college/application/enroll_student.py` in this task. Do not change an input or an assertion to produce a failure.
+### Slice US1-D — Course does not exist
 
-- [x] T017 [US1] If T016 recorded a failure, change only the refusal order in `src/college/application/enroll_student.py` until those same tests pass, then run them again and record the pass. If T016 recorded a pass, do not modify `src/college/application/enroll_student.py`. Do not remove a refusal test.
+Specification FR-007.
 
-### Red
+- [ ] T006 [US1] Acceptance: run `test_missing_course` in `tests/unit/test_enroll_student.py` and `tests/integration/test_http_enrollment.py`, and `test_incomplete_course_does_not_exist` in `tests/unit/test_enroll_student.py`. The message is "That course does not exist." Nothing is written. If they pass, stop with no production change. If one fails, Green from `src/college/adapters/inbound/http.py` through `src/college/application/enroll_student.py` to `src/college/domain/course.py`; Refactor; re-run those tests.
 
-- [x] T018 [US1] Add a failing test in `tests/unit/test_enroll_student.py` where `find` returns `Failure(InvalidInscription)` after the earlier business checks have passed. Expect outcome `integrity`, message "Stored inscription data is invalid.", no call to `add`, and a call to `rollback` on the unit of work. A grade attempt in the same request still returns the grade sentence and does not reach this result. Run the test and confirm it fails because `enroll` does not yet treat this as an integrity failure.
+### Slice US1-E — Already enrolled, including overlap
 
-- [x] T019 [P] [US1] Add a failing HTTP test in `tests/integration/test_http_enrollment.py` that builds the blueprint with a port whose `find` returns `Failure(InvalidInscription)`. Expect status 500, body message "Stored inscription data is invalid.", and no `inscription` field. The response must not be an FR-014 sentence. Run the test and confirm it fails because `src/college/adapters/inbound/http.py` does not yet map outcome `integrity`.
+Specification FR-008.
 
-- [x] T020 [P] [US1] Add a failing test in `tests/integration/test_persisted_records.py` that opens `SqliteUnitOfWork`, calls `rollback`, and asserts the transaction does not commit. Run the test and confirm it fails because `src/college/adapters/outbound/sqlite_unit_of_work.py` does not yet roll back on that call.
+- [ ] T007 [US1] Acceptance: run `test_duplicate_leaves_existing_note_unchanged` and `test_persistence_conflict_is_already_enrolled` in `tests/unit/test_enroll_student.py`, `test_duplicate_and_existing_note` in `tests/integration/test_http_enrollment.py`, and `test_concurrent_enrollment_keeps_one_inscription` in `tests/integration/test_inscription_concurrency.py`. The message is "You are already enrolled in this course." An existing grade on that inscription is unchanged. If they pass, stop with no production change. If one fails, Green from `src/college/application/enroll_student.py` toward `src/college/adapters/outbound/sqlite_unit_of_work.py`; Refactor; re-run those tests.
 
-### Green
+### Slice US1-F — Present `note`, including null
 
-- [x] T021 [US1] Add `rollback` to `src/college/adapters/outbound/sqlite_unit_of_work.py` so T020 passes. `__exit__` rolls back and does not commit when `rollback` was called or when the block raised. A clean exit still commits. `PersistenceConflict` stays raised from `src/college/adapters/outbound/sqlite_inscription_repository.py`. Re-run the T020 test and confirm it passes.
+Specification FR-011. A present `note` is a grade attempt, including null, an empty string, or any other supplied value. An omitted `note` is not.
 
-- [x] T022 [US1] Finish the `Failure(InvalidInscription)` path in `src/college/application/enroll_student.py` so T018 passes. Do not call `add`. Call `rollback`. Return outcome `integrity` with message "Stored inscription data is invalid." and no inscription. A business `Failure` for a student or course does not call `rollback`. `PersistenceConflict` is still handled outside the unit of work as the already-enrolled outcome. Re-run the T018 test and the T016 combination tests and confirm they pass.
+- [ ] T008 [US1] Red: add acceptance coverage in `tests/integration/test_http_enrollment.py` and `tests/unit/test_enroll_student.py` before changing production code. Post `"note": null`, `"note": ""`, and one other supplied value. Each response is 400 and "Students cannot assign, change, or remove a grade." Nothing is written. Keep `test_note_is_a_grade_attempt` and `test_grade_attempt`. The success request in `test_enroll_returns_created_inscription` omits `note` and is not a grade attempt. Run the new cases. A case that already passes stays. A case that fails does so because that present value is not treated as a grade attempt. Green only for a failing case, from `src/college/adapters/inbound/http.py` to `src/college/application/enroll_student.py`. Refactor without changing the outcome, then re-run those tests.
 
-- [x] T023 [US1] Map outcome `integrity` to 500 in `src/college/adapters/inbound/http.py` so T019 passes. Before moving the shape checks, run the existing HTTP tests in `tests/integration/test_http_enrollment.py` that cover "acting_student_id is required.", "course_id is required.", and "acting_student_id and course_id must be integers." and confirm they pass. Then move those three checks out of `src/college/application/enroll_student.py` and into this adapter, before `enroll` is called. Keep those sentences. A present `note`, including JSON null, stays an application grade decision. Relocate any unit assertion that expected `enroll` to return a shape sentence onto `tests/integration/test_http_enrollment.py`. Do not delete those assertions. Run the HTTP enrollment tests again, including T019, and confirm they pass.
+### Slice US1-G — Unsupported target-student field
 
-- [x] T024 [US1] Run `tests/unit/test_enroll_student.py`, `tests/integration/test_http_enrollment.py`, `tests/integration/test_persisted_records.py`, `tests/integration/test_development_seed.py`, and `tests/integration/test_inscription_concurrency.py`. Confirm they pass. Do not treat `python -m pytest` as this checkpoint. `tests/unit/test_browse_courses.py` and `tests/integration/test_http_courses.py` are still allowed to fail until T026, and they stay in the tree.
+Specification FR-010. This replaces the business refusal "You can only enroll yourself." Do not add another business sentence and do not add authentication.
 
-**Checkpoint**: User Story 1 is independently testable through the enrollment files in T024. The full suite is not the gate. Browse still uses the previous course list.
+- [ ] T009 [US1] Red: replace `test_enroll_other_student` and `test_same_student_id_is_self_enrollment` before changing production code. In `tests/integration/test_http_enrollment.py`, a present `student_id` that differs from `acting_student_id`, and a present `student_id` equal to `acting_student_id`, each return HTTP 400 and an `errors` array containing `{"code": "target_student_not_accepted", "field": "student_id"}`. Nothing is written. The body has no business `message`. In `tests/unit/test_enroll_student.py`, assert that same code and field for both values, and assert that no inscription is written. Delete the expectation "You can only enroll yourself." Run the tests and confirm they fail because the service still enrolls the equal id and still returns that removed sentence for a different id.
+
+- [ ] T010 [US1] Red: in `tests/unit/test_enroll_student.py`, add a failing test that a present `student_id` together with a present `note` returns only `target_student_not_accepted` and does not return "Students cannot assign, change, or remove a grade." Replace `test_grade_attempt_wins_over_enrolling_someone_else` and `test_enrolling_someone_else_wins_over_*` so they no longer expect "You can only enroll yourself." Keep `test_grade_attempt_wins_over_an_unregistered_student`, `test_grade_attempt_wins_over_a_missing_course`, `test_grade_attempt_wins_over_an_existing_inscription`, `test_unregistered_student_wins_over_a_missing_course`, and `test_missing_course_wins_over_an_existing_inscription`. Run the new test and confirm it fails because business evaluation still runs while the target-student field is present.
+
+- [ ] T011 [US1] Green from the boundary: change `src/college/adapters/inbound/http.py` and `src/college/application/enroll_student.py` by the minimum that makes T009 and T010 pass. A supplied target-student field is an input-validation error. It is accumulated with other independent input-validation errors and is not a business refusal. Input validation finishes before FR-014. The acting student on a success is the trusted-context student. Do not pass the Flask request into `enroll`. Refactor those two modules without changing this behavior, then re-run `tests/unit/test_enroll_student.py` and `tests/integration/test_http_enrollment.py`.
+
+### Slice US1-H — Four-step business refusal order
+
+Specification FR-014. Order: a grade attempt; then the acting student is not registered; then the course does not exist; then the student is already enrolled.
+
+- [ ] T012 [US1] Acceptance: run the remaining `wins_over` tests in `tests/unit/test_enroll_student.py`. One attempt that matches more than one business refusal, and that has no input-validation error, returns only the earlier sentence. A grade attempt by an unregistered student is "Students cannot assign, change, or remove a grade." If they pass, stop with no production change. If one fails, Green in `src/college/application/enroll_student.py`; Refactor; re-run that file.
+
+### Slice US1-I — Programme without a nonempty name
+
+Specification FR-009 and `data-model.md`. A programme needs an integer `id` and a nonempty `name`. Nonempty means at least one character. This feature does not define removal of surrounding spaces. Names are not required to be unique. A record that lacks either value is not an existing programme.
+
+- [ ] T013 [US1] Red: add a failing acceptance test in `tests/integration/test_http_enrollment.py` before changing production code. An otherwise complete acting student refers to a programme that has no nonempty name. The response is 400 and "Only a registered student can enroll in a course." No inscription is stored. On the current table, a programme row that stores only `id` has no name. Run the test and confirm it fails because that student is enrolled.
+
+- [ ] T014 [US1] Add a unit test in `tests/unit/test_enroll_student.py` that a programme-port failure is that same sentence and writes nothing. Run it. If it already passes, leave `src/college/application/enroll_student.py` unchanged in this task. If it fails, Green only that mapping, then Refactor and re-run the new unit test. Do not add the programme name type in this task.
+
+- [ ] T015 [US1] Red: write failing tests in `tests/unit/test_programme.py` before changing `src/college/domain/programme.py`. `Programme.create` returns `Failure` and does not raise when `id` is not an integer, including a boolean, or when `name` is missing or empty. The same invalid values passed to `Programme(...)` raise `ConstructionError` and return no programme. A valid `create` returns `Success` holding a `Programme`. Keep the existing rejection of a non-integer `id`. Run the file and confirm the new name cases fail because the type still accepts an identifier alone.
+
+- [ ] T016 [US1] Green: implement the minimum `Programme.create` and `Programme.__post_init__` in `src/college/domain/programme.py` so T015 passes. Use the standard library only. `create` returns `Failure` without raising and calls the constructor only after the value is valid. Do not add a user-facing sentence in this module. Where a valid in-memory `Programme` is built in `tests/unit/test_enroll_student.py` or `tests/integration/test_http_enrollment.py`, pass a nonempty name and leave the enrollment assertions unchanged. Refactor `src/college/domain/programme.py` without changing this behavior, then re-run `tests/unit/test_programme.py` and `tests/unit/test_enroll_student.py`.
+
+- [ ] T017 [US1] Red: write failing tests in `tests/integration/test_persisted_records.py` before changing the programme repository. A missing programme row returns `Failure(Missing)`. A stored row whose name is empty or missing returns `Failure` and does not return a `Programme`. A stored row with an integer `id` and a nonempty `name` returns `Success(Programme)`. Update the existing present-programme expectation so the expected programme includes a nonempty name. Run the test and confirm it fails because `src/college/adapters/outbound/sqlite_programme_repository.py` still selects only `id`.
+
+- [ ] T018 [US1] Green, continuing inward from T013: update `initialize_schema` in `src/college/adapters/outbound/sqlite_unit_of_work.py` so `programme` stores `id` and `name`. `CREATE TABLE IF NOT EXISTS` does not add a column to an existing table, so use a new database file for checks created with the old table. Change `get` in `src/college/adapters/outbound/sqlite_programme_repository.py` to construct `Programme` from the stored `id` and `name` and to return the domain `Failure` unchanged. Update `seed_development` in `src/college/app.py` so programme 1 has a nonempty name. Give the existing `INSERT INTO programme (id)` statements in `tests/integration/test_http_enrollment.py`, `tests/integration/test_persisted_records.py`, and `tests/integration/test_inscription_concurrency.py` a nonempty name, and point the T013 case at a programme whose name is empty. Keep `test_invalid_stored_inscription_is_an_integrity_failure` and `test_invalid_stored_inscription_is_internal_failure`. Run T013 and T017 and confirm they pass. Refactor the repository and schema setup without changing this behavior, then re-run those integration files and `tests/unit/test_enroll_student.py`.
+
+**Checkpoint**: Success, the grade sentence, the target-student validation error, and the programme-name refusal are independently testable.
+
+### Slice US1-J — Accumulated input validation
+
+Plan and constitution A10. Identifier value objects are introduced only in this slice. Validation still finishes before FR-014.
+
+- [ ] T019 [US1] Red: add failing acceptance tests in `tests/integration/test_http_enrollment.py` before moving the remaining identifier checks. One missing `acting_student_id`, with no target-student field, stays 400 and "acting_student_id is required." One missing `course_id` stays 400 and "course_id is required." One non-integer identifier, including a boolean, stays 400 and "acting_student_id and course_id must be integers." A body that is not a JSON object, a body missing both required identifiers, and a body that combines a target-student field with an identifier failure return 400 and an `errors` array. Each element has `code` and `field`. `acting_student_id` comes before `course_id`, and `target_student_not_accepted` follows those identifier errors. A missing field is not also reported as not an integer. The identifier codes are `acting_student_id_missing`, `course_id_missing`, `acting_student_id_not_integer`, and `course_id_not_integer`. When any of these validation errors is present, the body does not include a business sentence. Run the new tests and confirm the multiple-error case fails because the adapter still returns the first shape sentence.
+
+- [ ] T020 [US1] Red: add failing tests in `tests/unit/test_enroll_student.py` before changing the collection behavior. Assert the application result, not an HTTP body. Both required identifiers missing produces a non-empty collection containing `acting_student_id_missing` and `course_id_missing`, and nothing is written. One missing identifier produces only that identifier's code. A target-student field is included in that same collection. The grade sentence is decided only after validation has produced no errors. Run the new tests and confirm they fail because `enroll` still stops at the first raw identifier.
+
+- [ ] T021 [US1] Red: write failing tests in `tests/unit/test_identifiers.py` before adding `src/college/domain/identifiers.py`. An acting-student identifier and a course identifier each accept an integer and reject a missing value, a boolean, and any other non-integer. Construction of an invalid identifier returns no valid instance. Run the file and confirm it fails because the module does not exist.
+
+- [ ] T022 [US1] Green: implement the minimum identifier types in `src/college/domain/identifiers.py` so T021 passes. Use the standard library only. Do not import Flask, `sqlite3`, or an adapter. Refactor that module without changing this behavior, then re-run `tests/unit/test_identifiers.py`.
+
+- [ ] T023 [US1] Green from the boundary: change `src/college/adapters/inbound/http.py` so it builds the input contract and maps the application outcome. It does not decide the grade sentence and it does not repeat the identifier checks. One required-identifier failure, with no target-student field, keeps the existing `message` sentence. Any `target_student_not_accepted` error, and more than one identifier failure, returns the `errors` array from `contracts/student-self-enrollment.md`. Do not pass the Flask request into `enroll`. Change `src/college/application/enroll_student.py` by the minimum that makes T020 pass. Build a validated command only from the acting-student and course identifier types in `src/college/domain/identifiers.py`. Do not put a target-student field or `note` on that command. Collect every independent input-validation failure. Do not stop at the first. Ask the domain type to accept or reject an identifier, and do not copy that rule. After validation produces no errors, apply the four-step FR-014 order and return one business message. A refusal writes nothing. Refactor those two modules without changing this behavior, then re-run `tests/unit/test_enroll_student.py` and `tests/integration/test_http_enrollment.py`.
+
+**Checkpoint**: User Story 1 acceptance tests pass, including target-student validation, present `note`, the programme-name refusal, and the four-step FR-014 order.
 
 ---
 
 ## Phase 4: User Story 2 - Browse available courses (Priority: P2)
 
-**Goal**: A registered student sees every existing course. An invalid stored course stays on the application batch and is absent from the HTTP list.
+**Goal**: A registered student sees every existing course. Programme name does not add or remove a course.
 
-**Independent Test**: `GET /courses` returns 200 and the set of valid courses, each with `id`, `course_code`, and `name`, including a shared name and a course outside the caller's programme. An incomplete stored course is not in the JSON list. The application `CourseList.invalid` still contains that row's `InvalidCourse`. An empty catalogue returns `"courses": []`. The blank-code row already asserted by `tests/integration/test_http_courses.py` stays omitted.
+**Independent Test**: `GET /courses` returns 200 and the set of existing courses, each with an identifier, a course code, and a name. A course that lacks a nonempty code or a nonempty name is absent. An empty catalogue returns an empty list. Course order is not a requirement.
 
-### Red
+### Slice US2-A — Course list
 
-- [x] T025 [US2] Add `test_invalid_stored_course_stays_on_the_batch` to `tests/unit/test_browse_courses.py`. The fake read contains one valid `Course` and one `InvalidCourse` diagnostic, without calling `Course(...)` on an empty or missing code or name. Expect the shown list to omit that course and `CourseList.invalid` to keep the diagnostic. Keep the existing incomplete-course test in this file even if constructing `Course(1, "", "Introduction")` now raises. Run only `tests/unit/test_browse_courses.py::test_invalid_stored_course_stays_on_the_batch` and confirm it fails because browse does not yet return both parts of `CourseList`. Do not use the constructor error in the older test as this Red result. Do not delete that older test. The HTTP omission of a blank `course_code` is existing behavior; do not change production code in this task to make `tests/integration/test_http_courses.py` fail.
+Specification User Story 2 scenarios 1 through 6. FR-001, FR-002, FR-003.
 
-### Green
+- [ ] T024 [P] [US2] Acceptance: run `tests/unit/test_browse_courses.py` and `tests/integration/test_http_courses.py`. Cover every existing course, a course outside the student's programme, a course the student is already enrolled in, an empty list, two courses that share a name, and a course record with no course code or no name. This browse behavior is unchanged. Do not filter courses by programme in `src/college/application/browse_courses.py` or `GET /courses` in `src/college/adapters/inbound/http.py`. If a fixture still inserts a programme without a nonempty name, add that name and leave the browse assertions unchanged. If the tests pass, stop with no production change. If a listed scenario fails, Green from `src/college/adapters/inbound/http.py` to `src/college/application/browse_courses.py`; Refactor; re-run both files.
 
-- [x] T026 [US2] Change `CoursePort.list_all` in `src/college/application/ports.py` so it returns `CourseList`. Change `list_all` in `src/college/adapters/outbound/sqlite_course_repository.py` to append each `Course.create` success to `courses` and each `InvalidCourse` to `invalid`. Do not drop an invalid row and do not raise `ConstructionError` for that row. Change `src/college/application/browse_courses.py` to return that `CourseList`, with the existing `course_code` sort applied only to the valid courses. Change `GET /courses` in `src/college/adapters/inbound/http.py` to serialize `courses` only. In `tests/unit/test_browse_courses.py`, stop constructing a `Course` with an empty or missing code or name; represent those rows as `InvalidCourse` diagnostics and keep the assertion that they are absent from the shown list. Leave the blank `course_code` insert and the omission assertion in `tests/integration/test_http_courses.py` in place. The HTTP body has no diagnostic field. Run `tests/unit/test_browse_courses.py` and `tests/integration/test_http_courses.py` and confirm they pass, including T025.
-
-- [x] T027 [US2] Run `python -m pytest` from `lab-4/` and confirm the full suite passes. This is the first full-suite Green checkpoint after T001. It is valid only because T014, T015, and T026 have made the production adapters and consumers compatible with the port contracts. Do not exclude a test. Confirm the User Story 1 files from T024 still pass.
-
-**Checkpoint**: Browse and enrollment both pass. The HTTP course list is still the set of valid courses.
+**Checkpoint**: Browse and enrollment both pass their own test files.
 
 ---
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-**Purpose**: Refactor, then measure coverage on a trusted report, then check boundaries, concurrency, and the running service
+**Purpose**: Architecture, coverage, static checks, and the running service.
 
-- [x] T028 Refactor only unused helpers in `src/college/domain/`, `src/college/application/`, and `src/college/adapters/`. Run `python -m pytest` before the cleanup and again after it. If nothing is unused, leave the code in place. Do not delete or weaken a test.
+- [ ] T025 [P] Add `tests/unit/test_architecture_boundaries.py`. Assert that modules under `src/college/domain/` and `src/college/application/` do not import Flask, `sqlite3`, or `college.adapters`. Run the file and confirm it passes. Do not move a business rule into an adapter to make it pass.
 
-- [x] T029 Produce a trusted branch-coverage report for package `college` without editing `pyproject.toml`. The 2026-10-15 pytest-cov run is not trusted: it warned that module `college` was previously imported and not measured, and `student.py` and `course.py` showed 0 branches. Discard any report that still contains "previously imported, but not measured". From `lab-4/`, in a fresh process, run `python -m coverage erase`, then `python -m coverage run --branch --source=college -m pytest -o addopts= -p no:cov`, then `python -m coverage report -m --fail-under=100`. That sequence starts measurement before `college` is imported. `-o addopts=` avoids a second pytest-cov start; `--fail-under=100` on the report keeps the configured threshold. `[tool.coverage.run]` already sets branch coverage, `source = ["college"]`, and `omit = ["tests/*"]`. Do not add an omit, a pragma, or an exclusion, and do not lower the threshold. A trusted report has no measurement warning, exits 0 under `--fail-under=100`, and shows real branch counts for files that contain conditionals, including `src/college/domain/student.py` and `src/college/domain/course.py`. A clean-process file that contains a conditional and still shows 0 branches is a measurement failure; do not use that report.
+- [ ] T026 From `lab-4/`, run `python -m pytest -v --cov=college --cov-branch --cov-report=term-missing`. Keep the configured gate `--cov=college --cov-branch --cov-fail-under=100` from `pyproject.toml`. New or modified business branches in `src/college` are covered at 100% branch coverage. The baseline is the recorded 100% branch result in `specs/001-student-self-enrollment/evidence/coverage.txt`, measured on that same scope, and this run must not fall below it. A file percentage alone does not prove a new branch ran. Do not add an omit, a pragma, a lower threshold, or a test exclusion. Do not weaken, delete, skip, or rewrite a test to satisfy the gate. If a new business branch has no test, return to Red on that slice, make the minimum change, refactor without changing behavior, and run this command again.
 
-- [x] T030 Read only the trusted report from T029 and judge two separate results. For new or modified business code, the branch table must show every branch executed in `src/college/domain/student.py`, `src/college/domain/course.py`, `src/college/domain/programme.py`, `src/college/domain/inscription.py`, `src/college/application/enroll_student.py`, `src/college/application/browse_courses.py`, and the repository branches that map a row to `Success` or `Failure`. A file-level percentage does not satisfy this check. Separately, record the overall branch total for package `college` under the same scope: source `college`, branch coverage, omit `tests/*` only. That overall total is not the incremental check. The warned 2026-10-15 total is not the baseline. This task does not adopt a new baseline and does not change `pyproject.toml`. The configured `--cov-fail-under=100` from T029 still applies to the package measurement. If either the new-or-modified branch table or the configured package gate fails, fix the untested behavior with a new Red then Green cycle. Do not add an omit or lower the threshold.
+- [ ] T027 Install the dev extra, then run `ruff check src/college` and `pyright` from `lab-4/`. Fix genuine findings in `src/college`. Do not add a file-wide ignore, a blanket `# noqa`, or a blanket `# type: ignore`. Do not change Pyright to strict and do not select more Ruff rules. The first passing pair of runs is the baseline. These checks do not replace the coverage gate.
 
-- [x] T031 Run the architecture checks from `specs/001-student-self-enrollment/quickstart.md` against `src/college/domain`, `src/college/application`, `src/college/adapters/inbound`, and `src/college/app.py`. Domain and application must not import Flask or `sqlite3`. The inbound adapter must not import an outbound adapter. SQLite adapter construction must appear only in `src/college/app.py`.
-
-- [x] T032 Run `tests/integration/test_inscription_concurrency.py` and confirm one inscription remains for the overlapping pair, the existing note is unchanged, and the losing attempt receives "You are already enrolled in this course."
-
-- [x] T033 Run the live curl sequence in `specs/001-student-self-enrollment/quickstart.md` against `flask --app college.app` on a fresh seeded database. Confirm the documented statuses and sentences for browse, creation, duplicate, the second student, the missing course, the unregistered student, enrolling someone else, the grade attempt, the combined grade attempt, and the three shape sentences. Do not curl an invalid inscription. The seed has no such row. That case is T018 and T019.
+- [ ] T028 Run the curl sequence in `specs/001-student-self-enrollment/quickstart.md` against the running application, not the Flask test client. Include the course list, success for the acting student with `note` omitted, duplicate, missing course, a present `note` including null, a `student_id` equal to the acting student, an acting student whose programme has no nonempty name, one identifier failure, and two identifier failures. Two business rules still expect the one four-step FR-014 sentence. A target-student field and two identifier failures expect HTTP 400 and the `errors` array.
 
 ---
 
@@ -154,80 +168,62 @@ T013, T014, and T015 are one migration. The port signatures, the production adap
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies.
-- **Foundational (Phase 2)**: Depends on T001. Blocks both user stories. Its gate is T011, the four factory files, not the full suite.
-- **User Story 1 (Phase 3)**: Depends on T011. Does not depend on User Story 2.
-- **User Story 2 (Phase 4)**: Depends on T011 and on T014. T014 edits `get` in `src/college/adapters/outbound/sqlite_course_repository.py`. T026 edits `list_all` in that same file, so it follows T014.
-- **Polish (Phase 5)**: Depends on T027. T029 before T030. T028 before T029 so the report measures the refactored code.
+- **Setup (Phase 1)**: No dependencies. T001 does not block the tests.
+- **Foundational (Phase 2)**: Depends on the current tree. Blocks every slice.
+- **User Story 1 (Phase 3)**: Depends on T002. Slices US1-A through US1-E finish before US1-F. US1-F finishes before US1-G. US1-G finishes before US1-H. US1-H finishes before US1-I. US1-I finishes before US1-J.
+- **User Story 2 (Phase 4)**: Depends on T002. It does not depend on the enrollment slices.
+- **Polish (Phase 5)**: Depends on T023 and T024. T027 follows T001. T028 follows T023.
 
 ### User Story Dependencies
 
-- **User Story 1 (P1)**: Starts after T011. The get/find migration is T012, then T013, then T014, then T015, with no full-suite Green checkpoint between those four. Enrollment is then testable through T024 without a passing browse suite.
-- **User Story 2 (P2)**: Starts after T014 for the course repository file, and after T013 for the `CourseList` type. It does not require a successful enrollment call. Its tests use stored courses. The first full-suite pass after T001 is T027, when `list_all`, browse, and HTTP match the port.
+- **User Story 1 (P1)**: Its demo checkpoint is T018. Its completion checkpoint is T023.
+- **User Story 2 (P2)**: Its checkpoint is T024.
 
-### Within Each User Story
+### Within Each Slice
 
-- T006 before T007, T008, T009, and T010. T011 runs only those new tests.
-- T012 fails before T013 changes ports. T014 implements get/find before T015 changes `enroll`. T015 runs the enrollment files, not the full suite.
-- T016 records a natural pass or failure. T017 edits `enroll_student.py` only when that record is a failure.
-- T018 follows T017 because both edit `tests/unit/test_enroll_student.py`. T019 and T020 can be written beside T018 after T015. T020 before T021. T018 before T022. T022 before T023. T019 before T023.
-- T025 before T026. T026 before T027.
-- Refactor (T028) runs after T027, and the suite must pass before and after it.
+- The acceptance test is the first task of a changed slice.
+- New behavior stays Red until the inward Green task.
+- Domain types and adapters are added only in the slice that needs them. Programme name appears in US1-I. Identifier value objects appear in US1-J.
+- Each Green task ends with Refactor and a fresh run of that slice's tests.
 
 ### Parallel Opportunities
 
-- T002, T003, T004, and T005 can run together.
-- T007, T008, T009, and T010 can run together after T006.
-- T019 and T020 can run together after T015. T018 follows T017, then can run beside T019 and T020 because the three tests use different files.
-- T013, T014, and T015 stay sequential. They share the migration and must not be treated as a green suite in the middle.
+- T024 can run beside US1-A through US1-H because it uses the browse test files.
+- T025 can run beside T026 after the story slices pass.
+- US1 slices that edit `tests/integration/test_http_enrollment.py` stay in order.
 
 ---
 
-## Parallel Example: User Story 1
+## Parallel Example: User Story 2
 
 ```bash
-# After T015, write the new failing tests that use different files:
-Task: "T019 HTTP 500 test in tests/integration/test_http_enrollment.py"
-Task: "T020 rollback test in tests/integration/test_persisted_records.py"
-
-# T018 follows T017 in tests/unit/test_enroll_student.py.
-# T016 is characterization: record its natural result before T017.
+# After T002, browse acceptance does not wait for the enrollment slices:
+Task: "T024 acceptance tests in tests/unit/test_browse_courses.py and tests/integration/test_http_courses.py"
 ```
 
 ---
 
 ## Implementation Strategy
 
-### MVP First (User Story 1 Only)
+### MVP First (User Story 1 through the programme-name slice)
 
-1. Complete Phase 1 and Phase 2. Stop at the factory files in T011. Do not require a full-suite pass there.
-2. Complete the get/find migration in order: T012, T013, T014, T015. Adapters and `enroll` are compatible before any later green claim.
-3. Record the FR-014 combination run, then complete the integrity Red and Green tasks.
-4. Stop after T024 and validate enrollment with those files. Browse may still fail until T026. Leave those tests in place.
+1. Complete T002.
+2. Complete US1-A through US1-H. Preserved slices stop when their accepted tests pass. US1-F and US1-G change `note` and target-student behavior.
+3. Complete US1-I. Stop and validate success, the grade sentence, `target_student_not_accepted`, and the programme-name refusal.
 
 ### Incremental Delivery
 
-1. Factory tests pass while the older invalid-entity tests are still waiting for their named migration tasks.
-2. User Story 1 makes get/find, `enroll`, refusal evidence, persistence recovery, and the HTTP map agree.
-3. User Story 2 switches `list_all` together with the course repository, browse, and HTTP, and T027 is the first full-suite pass after T001.
-4. Phase 5 refactors, then measures a warning-free report, then checks boundaries, concurrency, and curl.
-
-### Parallel Team Strategy
-
-1. One pass through T001 and T006.
-2. Split T007 through T010 across the four entity files.
-3. Keep T013, T014, and T015 with one owner so the port change is not checkpointed before the adapters and `enroll` match it.
-4. After T015, one person can write T019 and T020 while another finishes T016 through T018.
-5. User Story 2 waits for T014 before changing `list_all` in the course repository.
+1. US1-J moves the remaining identifier checks inward and accumulates independent validation errors before FR-014.
+2. User Story 2 confirms the course list.
+3. T025 through T028 enforce the architecture, coverage, Ruff, Pyright, and running-service gates.
 
 ---
 
 ## Notes
 
 - [P] tasks use different files and do not depend on an unfinished task.
-- Do not delete, weaken, skip, or exclude a test to reach a green run or a coverage number.
-- Do not add a linter, a type checker, a dependency, or a documentation file.
-- Exact business sentences stay those in `specs/001-student-self-enrollment/spec.md`. The integrity sentence stays the contract sentence and is not added to the specification.
-- Existing tests that assert `course_code` order stay, even though the specification does not require that order.
-- A passing characterization run is recorded and left in place. It is not converted into a failure.
-- Coverage uses the trusted report from T029. New or modified business branches and the overall package total are judged separately in T030. The measurement warning has to be gone before either number is used.
+- Exact business sentences stay those in `specs/001-student-self-enrollment/spec.md`.
+- FR-014 order is: a grade attempt; then the acting student is not registered; then the course does not exist; then the student is already enrolled.
+- "You can only enroll yourself." is not a business refusal. A supplied `student_id`, including one equal to the acting student, is `target_student_not_accepted`.
+- A present `note`, including null, an empty string, or any other supplied value, is a grade attempt. An omitted `note` is not.
+- Do not install Ruff or Pyright before T027. T001 only edits `pyproject.toml`.

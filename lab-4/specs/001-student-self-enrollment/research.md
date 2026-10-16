@@ -168,30 +168,32 @@ then calls `enroll`. Business refusals return on the first match.
 
 - Input validation is application coordination. The input contract may
   hold unvalidated primitives. Missing and non-integer required
-  identifiers are independent input failures. The application collects
-  them as typed errors with stable codes. It does not decide a grade
-  attempt, an attempt to enroll someone else, registration, course
-  existence, or a duplicate.
+  identifiers, and each supplied target-student field, are independent
+  input failures. The application collects them as typed errors with
+  stable codes. A target-student field is
+  `target_student_not_accepted`. It does not decide a grade attempt,
+  registration, course existence, or a duplicate.
 - Domain type construction belongs to domain types. After the required
   identifiers can be constructed, the validated command carries those
   domain types. The application does not copy the domain invariant.
-- The input contract keeps `note`, and any named target student, as
-  unvalidated facts for the use case. A target student is not an
-  accepted enrollment field. The validated command carries only the
-  acting student and course identifiers. Domain behavior does not
-  receive those unvalidated facts.
+- The input contract keeps `note` as an unvalidated fact. A present
+  `note`, including null, an empty string, or any other supplied
+  value, is a grade attempt. An omitted `note` is not. The validated
+  command carries only the acting student and course identifiers.
+  Domain behavior does not receive `note` or a target-student field.
 - A programme is an identifier plus a nonempty name. Construction
   rejects a programme that lacks either. That rejection is the
   existing not-registered outcome when a student refers to it.
-- Business authorization belongs to the use case. It reads the input
-  contract for `note` and a named target student, and it reads the
-  validated command for domain behavior. It keeps the accepted FR-014
-  order and returns one business message.
+- Business authorization belongs to the use case. It runs only after
+  validation has produced no errors. It reads `note` from the input
+  contract and the validated command for domain behavior. It keeps the
+  accepted four-step FR-014 order and returns one business message.
 
 RF-001 is resolved by constitution 6.0.1. Business refusals stay on
-FR-014. UD-001 is resolved. More than one identifier failure is HTTP
-400 with an `errors` array of stable codes and field names, as written
-in the contract.
+FR-014. The approved specification removes "You can only enroll
+yourself." UD-001 is resolved. More than one identifier failure, and
+any `target_student_not_accepted` error, is HTTP 400 with an `errors`
+array of stable codes and field names, as written in the contract.
 
 **Rationale**: Principle A10 assigns coordination to application code
 and invariants to domain types. Principle A4 assigns protocol

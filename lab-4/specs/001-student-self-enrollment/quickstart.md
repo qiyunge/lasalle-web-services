@@ -75,11 +75,13 @@ that has a nonempty name, a registered student, and a course. Then:
    enrolled in this course." The stored inscription is unchanged.
 4. Post a course identifier that does not exist. The response is
    `404` and "That course does not exist."
-5. Post a `note` field. The response is `400` and "Students cannot
-   assign, change, or remove a grade." Nothing is written.
-6. Post a `student_id` that differs from `acting_student_id`. The
-   response is `400` and "You can only enroll yourself." The request
-   does not enroll that other student.
+5. Post a present `note`, including null, an empty string, or another
+   supplied value. The response is `400` and "Students cannot assign,
+   change, or remove a grade." Nothing is written. Omitting `note` is
+   the successful request in step 2.
+6. Post a `student_id`, including one equal to `acting_student_id`.
+   The response is `400` and an `errors` array containing
+   `target_student_not_accepted` for `student_id`. Nothing is written.
 7. Post as an acting student whose programme has no nonempty name.
    The response is `400` and "Only a registered student can enroll in
    a course." Nothing is written.
@@ -88,11 +90,12 @@ A request that matches more than one business rule expects only the
 FR-014 sentence. RF-001 is resolved: business refusals stay on that
 first match.
 
-A request with more than one identifier failure expects HTTP 400 and
-an `errors` array of stable codes and field names, as in
+A request with more than one identifier failure, or with a
+target-student field, expects HTTP 400 and an `errors` array of
+stable codes and field names, as in
 [contracts/student-self-enrollment.md](contracts/student-self-enrollment.md).
-UD-001 is resolved. One identifier failure still expects the single
-`message` sentence.
+UD-001 is resolved. One required-identifier failure, with no
+target-student field, still expects the single `message` sentence.
 
 `evidence/coverage.txt` and `evidence/curl.txt` record an earlier run
 of the current service. They show single-outcome behavior and 100%

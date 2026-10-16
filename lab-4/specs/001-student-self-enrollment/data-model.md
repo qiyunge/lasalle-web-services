@@ -16,17 +16,18 @@ authorization decision.
 | --- | --- | --- |
 | acting_student_id | required to form a command | Supplied by the trusted caller context. May be missing or not an integer. |
 | course_id | required to form a command | May be missing or not an integer. |
-| target student | not accepted | Absent, or any received value. A value that differs from the acting student names someone else. It does not select the inscription's student. |
-| note | optional | Absent, or any received value, including null. |
+| target student | not accepted | A supplied field, including `student_id` equal to the acting student, is error `target_student_not_accepted` on that field. It does not select the inscription's student. |
+| note | optional | Omitted, or present. A present value includes null, an empty string, or any other supplied value. |
 
-The target student and `note` stay on this contract as unvalidated
-facts. The use case reads them for FR-014. They are not copied into
-the validated command. Authentication of the caller context is outside
-this feature.
+A supplied target-student field is an input-validation error. `note`
+stays an unvalidated fact and is read for FR-014 only after validation
+has produced no errors. Neither is copied into the validated command.
+Authentication of the caller context is outside this feature.
 
-Independent failures for the two required identifiers are collected
-together as typed errors with stable codes. They do not produce a
-domain object. More than one of those failures uses the HTTP body in
+Independent failures for the two required identifiers and for each
+supplied target-student field are collected together as typed errors
+with stable codes. They do not produce a domain object. The HTTP body
+is in
 [contracts/student-self-enrollment.md](contracts/student-self-enrollment.md).
 
 ## Validated enrollment command

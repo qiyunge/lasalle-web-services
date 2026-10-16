@@ -58,8 +58,8 @@ When no existing course is stored, the status is still `200` and
 | --- | --- | --- |
 | acting_student_id | yes | Integer identifier of the acting student supplied by the trusted caller context. |
 | course_id | yes | Integer identifier of the course to join. |
-| student_id | not accepted | Not an enrollment field. A value that differs from `acting_student_id` names another student and is not supported. An equal value does not select a different student. The inscription student is always the acting student. |
-| note | no | A present key, including JSON null, is a grade attempt. Omit the key for a successful enrollment. |
+| student_id | not accepted | Not an enrollment field. A present key is input-validation error `target_student_not_accepted` on `student_id`, even when the value equals `acting_student_id`. The same code applies to each other supplied target-student field, using that field's name. |
+| note | no | A present key is a grade attempt, including JSON null, an empty string, or any other supplied value. Omit the key for a successful enrollment. |
 
 A body that is not a JSON object is read as an empty object.
 
@@ -91,12 +91,16 @@ The application result uses these stable codes and field names:
 | `course_id_missing` | `course_id` |
 | `acting_student_id_not_integer` | `acting_student_id` |
 | `course_id_not_integer` | `course_id` |
+| `target_student_not_accepted` | The supplied target-student field name, including `student_id` |
 
-**Resolved (UD-001).** When more than one of these failures applies,
-the response is HTTP 400. The body is a structured `errors` array.
-Each element has the stable `code` and the `field` name. The array
-lists `acting_student_id` before `course_id`. A field that is missing
-is not also reported as not an integer.
+**Resolved (UD-001).** When more than one required-identifier failure
+applies, or when any `target_student_not_accepted` error applies, the
+response is HTTP 400. The body is a structured `errors` array. Each
+element has the stable `code` and the `field` name. The array lists
+`acting_student_id` before `course_id`, then each target-student field
+in the order supplied. A field that is missing is not also reported as
+not an integer. A target-student error has no `message` sentence, even
+when it is the only validation error.
 
 ```json
 {
@@ -115,11 +119,26 @@ is not also reported as not an integer.
 
 A body that is not a JSON object is an empty object, so both required
 identifiers are missing and this array is the response. This replaces
-the earlier single sentence for that request. One failure still uses
-the `message` row above. This response is input validation. It is not
-a business refusal and it is not part of FR-014. When this validation
-fails, the response does not also include a business sentence. FR-014
-applies after the required identifiers pass validation.
+the earlier single sentence for that request. One required-identifier
+failure, with no target-student field, still uses the `message` row
+above. This response is input validation. It is not a business refusal
+and it is not part of FR-014. When this validation fails, the response
+does not also include a business sentence. FR-014 applies after input
+validation has produced no errors.
+
+```json
+{
+  "errors": [
+    {
+      "code": "target_student_not_accepted",
+      "field": "student_id"
+    }
+  ]
+}
+```
+
+That body is the response for a present `student_id`, including a
+value equal to `acting_student_id`. Nothing is written.
 
 ### Created
 
@@ -146,11 +165,10 @@ attempt changes nothing.
 
 | Order | Condition | Status | `message` |
 | --- | --- | --- | --- |
-| 1 | `note` is present, including JSON null | 400 | Students cannot assign, change, or remove a grade. |
-| 2 | `student_id` is present and differs from `acting_student_id` | 400 | You can only enroll yourself. |
-| 3 | No registered student for `acting_student_id`, including a programme that lacks a nonempty name | 400 | Only a registered student can enroll in a course. |
-| 4 | No existing course for `course_id` | 404 | That course does not exist. |
-| 5 | An inscription already exists for that student and course | 409 | You are already enrolled in this course. |
+| 1 | `note` is present, including JSON null, an empty string, or any other supplied value | 400 | Students cannot assign, change, or remove a grade. |
+| 2 | No registered student for `acting_student_id`, including a programme that lacks a nonempty name | 400 | Only a registered student can enroll in a course. |
+| 3 | No existing course for `course_id` | 404 | That course does not exist. |
+| 4 | An inscription already exists for that acting student and course | 409 | You are already enrolled in this course. |
 
 ```json
 {
