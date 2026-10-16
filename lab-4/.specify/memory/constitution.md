@@ -1,360 +1,504 @@
 <!--
 Sync Impact Report
-- Version change: 1.3.0 → 1.4.0
-- Modified principles (rule kept; added detail only):
-  - XII. Established Conventions (pytest is the demonstrated need for
-    that test dependency; other new dependencies still need their own)
-- Added principles:
-  - XVI. Acceptance-Test Tasks
-  - XVII. Test-Driven Development
-  - XVIII. Branch Coverage
-  - XIX. HTTP Acceptance Verification
-  - XX. Completion Evidence
+- Version change: 2.0.3 → 2.0.4
+- Bump: PATCH. E5 already required Red and Green to be verified for a
+  behavior change, and existing tests before and after a
+  behavior-preserving change. Q6 already said Red and Green need no
+  permanent per-cycle record. This amendment states both cases in E5
+  and Q6, and applies the no-permanent-record rule to both.
+- Modified principles:
+  - E5. Test-Driven Development → E5. Test-Driven Development
+  - Q6. Completion Evidence → Q6. Completion Evidence
 - Added sections: none
 - Removed sections: none
-- Vocabulary: unchanged
-- Governance: task lists and completion claims are reviewed against
-  Principles XVI–XX. Versioning names engineering and quality
-  constraints.
 - Follow-up TODOs: none
 -->
 
 # Lab-4 College Management Constitution
 
-The college management web service serves college administrative staff
-who manage academic programmes, students, courses, and enrollments.
-Students are also primary users. A student may browse available courses
-and enroll in a course without administrative intervention.
-The service is built with Python 3.12, Flask, and SQLite.
-This constitution records that business context, the project-wide
-domain invariants, the architectural constraints, and the engineering
-and quality constraints that govern the service.
+The college management web service serves college staff and students.
+Students may browse courses and enroll themselves. The service uses
+Python 3.12, Flask, and SQLite.
+
+This constitution governs project-wide business invariants, architecture,
+engineering practices, quality gates, and amendment decisions. Feature
+specifications own feature-specific behavior, API contracts, and
+messages. Plans and tasks own concrete designs and execution steps.
+
+Rules are grouped: B for business invariants, A for architecture, E for
+engineering, Q for quality, and G for gap governance. Rules B1 through B7
+are domain rules. They are not a SQL schema, an endpoint design, or a
+repository method specification.
 
 ## Core Principles
 
-### I. Programme Membership
+### B1. Programme Membership
 
 Every student MUST belong to an existing programme.
 
-The student's reference to an existing programme is this rule. The
-student's identifier, required name, and required email address are
-Principle XIV. They do not replace this membership rule.
+Rationale: A student is a learner registered in a programme. A record
+that names a missing programme is not a valid registration.
 
-Rationale: A student is a learner registered in a programme. A student
-record that names a missing programme is not a valid registration.
+### B2. Student Identity
 
-### II. Enrollment References
+A student MUST have an identifier, a nonempty name, and a nonempty email
+address. Student email addresses MUST be unique.
 
-Every enrollment MUST reference an existing student and an existing
+Rationale: A student without a name or an email address is not a complete
+registration. Two students MUST NOT share an email address.
+
+### B3. Course Identity
+
+A course MUST have an identifier, a nonempty code, and a nonempty name.
+Course codes MUST be unique. Course names MAY repeat.
+
+Rationale: The code distinguishes one course from another. The name is
+required so the course can be recognized. Two courses MAY share a name
+when their codes differ.
+
+### B4. Enrollment Integrity
+
+Every inscription MUST reference an existing student and an existing
+course. A student MUST NOT have more than one inscription for the same
 course.
 
-An inscription is that enrollment and MUST reference an existing
-student and an existing course. This is the same rule, stated as a
-project-wide domain invariant. It does not prescribe a SQL schema, a
-table definition, an index, or a repository implementation.
+Rationale: An inscription is the record of one student's enrollment in
+one course. A second inscription for the same pair is a conflict. A
+reference to a missing student or course is not an enrollment.
 
-Rationale: An inscription records one student's enrollment in one
-course. Both the student and the course MUST already exist.
+### B5. Grade
 
-### III. Unique Course Enrollment
+An inscription MAY have no note. An assigned note MUST satisfy the range
+stated by the accepted feature specification. This constitution does not
+invent a numerical range.
 
-A student MUST NOT enroll in the same course more than once.
+Rationale: A note is the optional grade on an inscription. The permitted
+range is a feature decision. A value outside the range that feature
+states is not a valid note.
 
-A student MUST NOT have more than one inscription for the same course.
-This is the same rule, not a second limit.
+### B6. Explicit Failure
 
-Rationale: One inscription is the sole record of that student in that
-course. A second inscription for the same student and course is a
-conflict.
+A missing reference, a duplicate enrollment, or a violated invariant MUST
+produce an explicit failure. It MUST NOT succeed silently. The feature
+specification defines the applicable user-facing messages.
 
-### IV. Grade Within Permitted Range
+Rationale: Staff and students MUST be able to tell that the operation
+did not take effect. Silent success would hide a broken invariant.
 
-An enrollment MAY exist without a grade. Any assigned grade MUST be
-within the permitted range.
+### B7. Student Authority
 
-An inscription MAY have no grade. This is the same rule.
+A student MAY browse courses and MAY enroll without staff intervention.
+A student MUST NOT enroll on another student's behalf. A student MUST NOT
+assign, change, or remove any grade. Grade management is reserved for
+authorized staff. Student withdrawal is not authorized until a feature
+specification adopts it.
 
-Rationale: A note is optional at enrollment time. When a note is
-assigned, it shows that student's grade in that course, and a value
-outside the permitted range is not a valid note. A feature that
-assigns a note MUST state the permitted range it enforces.
+Rationale: Student authority is browsing and self-enrollment. Another
+student's inscription, a grade, and withdrawal are outside that
+authority.
 
-### V. Explicit Failure
+### A1. Full Bridge Hexagonal Architecture
 
-An operation that involves a nonexistent record or a conflicting
-record MUST fail explicitly. It MUST NOT succeed silently.
+The system MUST use Full Bridge Hexagonal Architecture. The domain core
+consists of a distinct Application layer and a distinct Domain layer.
+Infrastructure and delivery mechanisms remain outside the core.
 
-Rationale: Administrative staff and students MUST be able to tell that
-the operation did not take effect. Silent success would hide a missing
-programme, student, or course, or a duplicate inscription.
+Rationale: Business behavior stays testable without Flask or SQLite.
+Delivery and storage translate at the boundary. They are not the core.
 
-### VI. Student Self-Enrollment
+### A2. Clean DDD Domain
 
-A student MAY browse available courses. A student MAY enroll in a
-course without administrative intervention.
+Domain MUST model business behavior with the appropriate DDD building
+block: an entity, a value object, or a domain service. The domain model
+that owns an invariant MUST enforce that invariant.
 
-A grade is not required at enrollment time. All applicable enrollment
-business rules remain in force.
+Domain MAY use the Python standard library. Domain MUST NOT depend on
+Application, on a third-party package, on a framework, or on persistence,
+transport, or other infrastructure.
 
-Rationale: Students are primary users. Browsing courses and creating
-the student's own inscription are actions the student may perform
-directly. An administrator is not required to complete either action.
-The inscription still has to satisfy every enrollment rule already
-adopted. Principle IV already allows an enrollment with no grade.
+Rationale: An invariant that lives only in an adapter is not a domain
+rule. A Domain import of Flask, SQLite, or Application would bind the
+rule to its surroundings.
 
-### VII. Student Enrollment Authority
+### A3. Application Use Cases
 
-A student MUST NOT create or modify an enrollment on behalf of another
-student.
+Application MUST define the driving ports that expose use cases.
+Application MUST orchestrate the business operation by coordinating
+domain behavior, outbound ports, and the transaction workflow.
 
-A student MUST NOT assign, modify, or remove a grade, including a grade
-associated with that student's own enrollment. Grade management is
-reserved for authorized college staff.
+Application MAY depend on Domain. Application MAY use a third-party
+library when Principle E3 is met. Application MUST NOT import a concrete
+infrastructure implementation or an infrastructure-specific
+representation.
 
-This constitution does not grant a student the ability to withdraw from
-a course. That capability has not been specified.
+Rationale: The use case decides the operation. An import of a repository
+class or a database row would hide that decision in infrastructure.
 
-Rationale: Student authority covers browsing available courses and
-enrolling oneself. It does not cover another student's inscription, and
-it does not include assigning, changing, or removing a note. Leaving a
-course is a separate business rule that has not been adopted.
+### A4. Inbound Boundary
 
-### VIII. Technology Stack
+An inbound adapter MUST translate an external request into an
+application-owned input contract and MUST invoke a driving port.
 
-The college management web service MUST be built with Python 3.12,
-Flask, and SQLite.
+An external transport type, including a Flask request, MUST NOT cross
+into the core. The inbound adapter MUST translate the application
+outcome into the external protocol.
 
-Rationale: These are the adopted implementation technologies. Replacing
-the language, the web framework, or the database is a new
-infrastructure choice and requires a demonstrated need.
+Rationale: The core stays free of HTTP. The adapter owns status codes
+and response bodies. The use case owns the business outcome.
 
-### IX. Hexagonal Architecture
+### A5. Outbound Boundary
 
-The system MUST follow hexagonal architecture.
+An application-owned outbound port MUST define the capability a use case
+needs from persistence or from another external service. An outbound
+adapter MUST implement that port and MUST translate between its
+infrastructure representation and the port's contract.
 
-- Domain rules MUST remain independent of frameworks and
-  infrastructure.
-- Application use cases MUST coordinate business operations through
-  explicit ports.
-- Inbound adapters MUST translate external requests into application
-  commands or queries.
-- Outbound adapters MUST implement persistence and other
-  infrastructure concerns.
+The core MUST NOT use a SQLite row, a database connection, an HTTP client
+response, or an equivalent infrastructure-owned type.
 
-Rationale: Business rules stay testable without Flask or SQLite. Ports
-are the only path by which a use case reaches anything outside the
-application.
+Rationale: The use case asks for a capability. The adapter owns the SQL,
+the connection, and the row shape.
 
-### X. Thin Adapters
+### A6. Boundary Type Ownership
 
-HTTP routes MUST stay thin. Business rules MUST NOT be implemented in
-Flask routes or SQLite adapters. Persistence access MUST go through
-repository ports. Transaction boundaries MUST preserve domain
-invariants.
+At each independent boundary between the core and the outside, the
+contract and the data representation MUST be owned by the core. An
+adapter MUST translate where the outside uses a different representation.
 
-Rationale: A route or a SQLite adapter that contains a business rule
-binds that rule to the framework. A transaction that breaks an
-invariant would persist an invalid domain state.
+Application and Domain MAY share domain types. A separate data-transfer
+object is not required merely because an internal function or port is
+called. Full Bridge does not require a redundant one-to-one
+data-transfer object inside the core.
 
-### XI. Capability Boundaries
+Rationale: Translation belongs at the outside boundary. Copying the same
+fields between two core types adds no architectural boundary.
 
-The student, course, programme, and inscription capabilities MUST stay
-clearly bounded. A feature's design MUST respect those existing
-boundaries and MUST NOT introduce unnecessary coupling between them.
+### A7. Transactions and Integrity
 
-Rationale: Each capability has its own business rules. Coupling them
-without need makes a change in one capability a change in another.
+A use case MUST preserve business invariants across persistence
+operations, including conflicts and partial failures.
 
-### XII. Established Conventions
+Application MAY coordinate a transaction through an abstract outbound
+contract. An infrastructure adapter implements the transaction mechanics.
+A business decision MUST NOT be hidden in a Flask adapter or a SQLite
+adapter.
 
-Work MUST follow the conventions already present in the project.
-External dependencies MUST remain minimal. A new architectural
-pattern, framework, or infrastructure component MUST NOT be introduced
-without a demonstrated need.
+Rationale: A conflict or a partial write is still a business outcome.
+The adapter reports the persistence fact. The use case decides what that
+fact means.
 
-pytest, required by Principle XVII, is a demonstrated need. Any other
-new dependency still requires its own demonstrated need.
+### A8. Capability Boundaries
 
-Rationale: The project already has an adopted shape. An extra pattern
-or dependency is justified only when that shape cannot meet the need.
+Programme, student, course, and inscription responsibilities MUST remain
+distinguishable. A cross-capability dependency MUST have a concrete
+use-case justification and MUST satisfy Principles A1 through A7.
 
-### XIII. Architect Clarification
+Rationale: Each capability owns its rules. A dependency with no use-case
+justification couples two capabilities for no business reason.
 
-A design question that these constraints do not settle MUST be
-clarified with the architect. It MUST NOT be decided autonomously.
+### E1. Technology Baseline
 
-Rationale: These principles fix the boundaries that are already
-adopted. A question they leave open is an architect decision.
+The service MUST use Python 3.12, Flask, and SQLite until a
+constitutional amendment changes that stack.
 
-### XIV. Student Identity
+Rationale: These are the adopted language, web framework, and database.
+Replacing any of them is an infrastructure change, not a feature
+decision.
 
-A student MUST have an identifier, a name, and an email address. The
-name MUST be present. The email address MUST be present. The student
-MUST reference an existing programme, as Principle I requires.
+### E2. Established Conventions
 
-Student email addresses MUST be unique.
+New code MUST follow the consistent conventions already present in the
+project, unless a justified improvement is adopted. Naming and module
+responsibilities MUST stay coherent with Principles A1 through A8.
 
-These are domain invariants. They MUST NOT be read as a SQL schema, a
-table definition, an index, or a repository implementation.
+Rationale: A second naming scheme, or a second home for the same
+responsibility, makes the architecture harder to check.
 
-Rationale: A student without a name or an email address is not a
-complete registration. Two students MUST NOT share an email address.
-The programme reference remains the membership rule in Principle I.
+### E3. Minimal Justified Complexity
 
-### XV. Course Identity
+A new library, pattern, abstraction, or infrastructure component MUST
+have a demonstrated need. A feature-local design MAY evolve
+incrementally. It MUST NOT waive Principles A1 through A8.
 
-A course MUST have an identifier, a course code, and a name. The course
-code MUST be present. The name MUST be present.
+pytest, required by Principle Q2, is a demonstrated need. Any other new
+dependency still requires its own demonstrated need.
 
-Course codes MUST be unique. Course names are NOT required to be unique.
+Rationale: An extra abstraction is justified only when the adopted shape
+cannot meet the need. Incremental design does not remove a mandatory
+boundary.
 
-These are domain invariants. They MUST NOT be read as a SQL schema, a
-table definition, an index, or a repository implementation.
+### E4. Explicit Errors
 
-Rationale: The course code distinguishes one course from another. The
-name is required so the course can be recognized. Two courses MAY share
-a name when their codes differ.
+An expected business failure MUST be represented and handled explicitly.
+An infrastructure failure MUST NOT be reported as business success.
 
-### XVI. Acceptance-Test Tasks
+Translation of an outcome into an HTTP status and message belongs in the
+inbound adapter.
 
-Every feature task list MUST include acceptance tests derived from that
-specification's acceptance scenarios. Those acceptance-test tasks MUST
-appear before the implementation tasks they verify.
+Rationale: A caller MUST be able to tell a refused operation from a
+completed one. The adapter owns the protocol and does not invent the
+business result.
 
-A feature task list that has no explicit automated test tasks is
-incomplete.
+### E5. Test-Driven Development
 
-Rationale: The scenarios in the specification are the behavior the
-feature must prove. Writing the proof after the implementation removes
-the chance to see the test fail first.
+For new or changed observable behavior, the Red, Green, Refactor cycle
+is mandatory.
 
-### XVII. Test-Driven Development
+1. Red. Write automated tests from the feature specification and its
+   acceptance criteria before implementing that behavior. Run the tests
+   and verify that they fail for the expected behavioral reason.
+2. Green. Implement the minimum change that makes those tests pass.
+   Existing passing tests MUST stay passing. Principles A1 through A8
+   MUST stay satisfied.
+3. Refactor. Improve structure without changing observable behavior.
+   Every affected test MUST still pass.
 
-Implementation MUST follow this order: write a test first, observe it
-fail for the expected reason, implement the minimum behavior needed to
-pass, and then refactor while keeping the tests green.
+For behavior-preserving refactoring and non-behavioral maintenance,
+existing relevant tests MUST pass before the change and after it. A new
+failing test is not required unless the work exposes previously
+unspecified or untested behavior.
 
-The automated testing framework MUST be pytest. The tests for a
-behavior MUST include each of the unit, integration, and HTTP levels
-that can observe that behavior. A level that cannot observe the
-behavior is not required for that behavior.
+A test MUST NOT be weakened, deleted, bypassed, or rewritten only to fit
+an incorrect implementation.
 
-Rationale: A test that is written after the code can pass without
-showing that it detects the missing behavior. pytest is the adopted
-runner. Each level is required only where it can see the behavior
-under test.
+A task list MUST schedule specification-derived acceptance tests before
+the implementation they verify. Tests that already pass do not
+demonstrate the Red phase for newly specified behavior.
 
-### XVIII. Branch Coverage
+For new or changed observable behavior, Red and Green results MUST be
+verified during execution. For behavior-preserving changes, the relevant
+tests MUST pass before the change and after it.
 
-Completion MUST require 100% branch coverage of project-owned
-executable application code. Line coverage is informational only.
+Neither case requires a permanent log per cycle, a separate evidence
+document, or a commit per cycle. Completion evidence is Principle Q6.
 
-Coverage MUST exclude third-party dependencies, test code, and
-generated code. Any further exclusion MUST be explicitly justified and
+Rationale: A test written after a behavior change can pass without
+showing that it detects the missing behavior. The Red result is that
+evidence. A change that preserves behavior has no missing behavior for a
+new test to detect, so the existing tests before and after the change
+are the check. Newly exposed behavior is a behavior change and returns
+to Red, Green, Refactor.
+
+### E6. Decision Scope
+
+A reversible implementation decision that stays inside one feature MAY
+be made in that feature when it complies with this constitution. A
+change to a cross-feature contract, or to a constraint in this
+constitution, requires explicit review.
+
+Rationale: A local, reversible choice does not need an amendment. A
+choice that binds another feature, or that changes a rule in this file,
+does.
+
+### Q1. Specification and Acceptance
+
+Every feature specification MUST identify its audience, the expected
+behavior, the relevant failures including user-facing messages, the
+explicit exclusions, and verifiable acceptance scenarios.
+
+Rationale: Those items are what a later test and a later review can
+check. A specification that omits one of them does not comply.
+
+### Q2. Automated Verification
+
+pytest MUST be the automated test runner.
+
+Domain invariants and application use cases MUST be independently
+testable. Tests MUST exercise the unit level, the integration level, and
+the HTTP level wherever that level can observe the behavior being
+verified. A level that cannot observe the behavior is not required for
+that behavior.
+
+Rationale: pytest is the adopted runner. Each level is required only
+where it can see the behavior under test.
+
+### Q3. Static Checks
+
+Changed project-owned code MUST pass the lint and type checks the
+project has already configured. An exception MUST be justified and
 documented.
 
-Rationale: Branch coverage shows that each decision outcome in
-project-owned code was executed. An undocumented exclusion would hide
-an untested branch.
+This principle does not add a linter, a type checker, or a setting. When
+none is configured, there is no configured check to run.
 
-### XIX. HTTP Acceptance Verification
+Rationale: Skipping a check the project already configured hides a
+defect that check was chosen to catch. Adding a tool is a dependency
+decision under Principle E3, not a side effect of this rule.
+
+### Q4. Branch Coverage
+
+New or modified project-owned executable business code MUST achieve 100%
+branch coverage of its applicable branches.
+
+Coverage of new or modified business branches MUST be verified using
+branch-level coverage data or an equivalent reproducible analysis. A
+file-level coverage percentage alone MUST NOT be treated as proof of
+incremental branch coverage.
+
+Overall branch coverage of project-owned executable application code
+MUST NOT fall below the established baseline, measured using the same
+coverage scope and configuration.
+
+The baseline MUST be established from a verified coverage report and
+updated only through an explicit, justified decision.
+
+Branch coverage MUST be measured with the project's configured coverage
+tooling. Line coverage is informational and MUST NOT stand in for branch
+coverage.
+
+Third-party code, generated code, and test code are excluded. Any
+further exclusion MUST be narrow, justified, and documented. An
+exclusion MUST NOT conceal untested business behavior.
+
+Coverage is necessary. It is not sufficient to show correctness.
+
+Rationale: A new or changed business branch that never executed is an
+untested decision. A file can report full coverage while a new branch
+inside it was not executed, so the file percentage does not prove the
+incremental rule. The baseline is a measured result, so a later run is
+comparable only under the same scope and configuration. Changing that
+measured gate requires an explicit decision that states why.
+
+### Q5. Running HTTP Verification
 
 After implementation, every user-facing HTTP behavior MUST be verified
 against the running application with reproducible curl commands. The
-task list MUST contain explicit tasks for those checks.
+commands MUST cover the applicable success and failure outcomes. The
+task list MUST include these checks.
 
-Verification MUST cover successful behavior and the applicable failure
-outcomes from the specification.
+This verification is separate from tests that use Flask's test client.
 
-Rationale: Automated tests can pass against a test client while the
-running service still disagrees with the specification. The curl
-commands repeat the success and failure sentences against that service.
+Rationale: A test client can pass while the running service still
+disagrees with the specification.
 
-### XX. Completion Evidence
+### Q6. Completion Evidence
 
-Completion MUST have recorded evidence of test execution, branch
-coverage, and the curl verification in Principle XIX.
+A feature MUST NOT be declared complete until all of the following hold:
 
-A feature MUST NOT be claimed complete solely because implementation
-code exists or because automated tests pass.
+- The accepted specification scenarios pass.
+- The relevant automated tests pass.
+- The configured static checks in Principle Q3 pass.
+- Principle Q4 is satisfied.
+- Principle Q5 passes where the feature has user-facing HTTP behavior.
+- Known critical defects are resolved.
 
-Rationale: Code and a green test run do not show branch coverage or
-the running HTTP behavior. The recorded evidence is the completion
-gate.
+The agent MUST give a concise completion report. The report MUST include
+the test results, the branch-coverage results, the static-check results,
+the applicable HTTP verification results, and any unresolved issues.
+
+For new or changed observable behavior, Red and Green results MUST be
+verified during execution. For behavior-preserving changes, the relevant
+tests MUST pass before the change and after it, as Principle E5
+requires.
+
+Neither case requires a permanent log per cycle, a separate evidence
+document, or a commit per cycle.
+
+The completion report MAY be the agent's final task response. No further
+permanent artifact is required unless a request asks for one.
+
+A feature MUST NOT be declared complete only because implementation code
+exists, or only because automated tests pass.
+
+Rationale: Code or a green test run does not show coverage, static
+checks, or the running HTTP behavior. The report is the completion gate.
+A permanent file is required only when a request asks for one.
+
+### G1. Feature-Driven Review
+
+A feature MUST be checked against the current business and architecture
+constraints at specification, at design, and at implementation.
+
+Before the next feature that materially depends on the same area, review
+the missing rules, conflicts, duplication, overconstraints, and repeated
+friction observed so far.
+
+Rationale: A constraint checked only at the end is found after the
+design has already ignored it. Repeated friction is the signal for
+Principle G3.
+
+### G2. No Silent Override
+
+A feature MUST NOT silently override a constitutional constraint. A
+discovered conflict MUST be surfaced for an explicit decision. A change
+to a business rule, or to cross-feature architecture, requires architect
+review.
+
+Rationale: An implementation that quietly breaks a rule makes this
+constitution false. Architect review keeps business rules and shared
+structure from changing as a side effect of one feature.
+
+### G3. Evidence-Based Promotion
+
+A finding SHOULD become a constitutional rule only when it is stable,
+project-wide, and supported by implementation evidence or by an explicit
+business decision. A feature-local detail stays in the specification,
+the plan, the tests, or the code.
+
+Rationale: One feature's choice is not yet a project rule. SHOULD, rather
+than MUST, allows an explicit business decision to adopt a rule before
+long evidence exists. The same rule permits that decision.
+
+### G4. Lightweight Amendment
+
+A ratified amendment MUST name the affected rules, the motivation, and
+the impact. It MUST update the version and the last-amended date.
+
+A routine prompt, a transient discussion, or a single iteration does not
+require its own permanent record or its own commit. Version control
+retains the history.
+
+Rationale: An amendment that does not name the rule and the impact
+cannot be reviewed. Ordinary iteration is already history in version
+control.
 
 ## Domain Vocabulary
 
 - **programme**: An academic programme offered by the college.
-- **student**: A learner registered in a programme. A student has an
-  identifier, a required name, a required email address, and a
-  reference to an existing programme. Email addresses are unique.
-- **course**: A course offered by the college. A course has an
-  identifier, a required course code, and a required name. Course
-  codes are unique. Course names are not required to be unique.
-- **inscription**: A student's enrollment in a course.
-- **note**: The grade associated with an enrollment. It shows a
-  student's grade in a course.
-
-## Feature Specification Requirements
-
-Every feature specification MUST state:
-
-- who the capability serves
-- the expected business behaviour
-- the failure paths, including the user-facing error messages
-- what is explicitly out of scope
-
-A specification that omits any of these items does not comply with
-this constitution.
+- **student**: A learner registered in a programme.
+- **course**: A course offered by the college.
+- **inscription / enrollment**: The record of one student's enrollment
+  in one course.
+- **note / grade**: The optional grade associated with an inscription.
+- **driving port**: An application-owned interface that exposes a use
+  case to an inbound adapter.
+- **outbound port**: An application-owned interface for a capability
+  supplied by an outbound adapter.
 
 ## Governance
 
-This constitution is the authority for lab-4 business context and for
-the architectural constraints recorded in this file. It supersedes
-informal descriptions of programmes, students, courses, inscriptions,
-notes, and of how the service is structured.
+Accepted business invariants and architecture constraints govern feature
+specifications and plans. A feature specification defines behavior inside
+those constraints. A plan and a task list define implementation and
+verification.
 
-Business principles, domain vocabulary, and feature-specification
-requirements remain in force. This constitution records the
-architecture, implementation technologies, and engineering constraints
-named in Principles VIII through XIII, and the engineering and quality
-constraints named in Principles XVI through XX. It MUST NOT define
-data schemas or API endpoint designs.
+When a constraint conflicts with a feature need, that conflict MUST be
+resolved under Principles G1 and G2 before implementation behavior
+changes.
 
-The domain invariants in Principles I through IV, XIV, and XV are
-business rules about students, courses, and inscriptions. They are not
-implementation instructions. They MUST NOT be treated as SQL schemas,
-table definitions, indexes, or repository implementations.
+This constitution supersedes informal descriptions of programmes,
+students, courses, inscriptions, notes, and of how the service is
+structured. It MUST NOT define a SQL schema, a table, an index, a
+repository implementation, or an API endpoint design.
 
-An amendment MUST be written into this file, MUST state which
-principle, vocabulary entry, specification requirement, or
-architectural constraint changed, and MUST update the version and
-last-amended date in the same change.
+An amendment MUST be written into this file. It MUST name the affected
+rules, the motivation, and the impact, and it MUST update the version
+and the last-amended date in the same change.
 
 Versioning follows semantic versioning:
 
-- MAJOR: remove or redefine an adopted business rule, architectural
-  constraint, or engineering or quality constraint.
-- MINOR: add a business rule, domain invariant, architectural
-  constraint, engineering or quality constraint, vocabulary entry, or
-  specification requirement.
+- MAJOR: remove or redefine an adopted constraint.
+- MINOR: add a constraint, a vocabulary entry, or a specification
+  requirement.
 - PATCH: clarify wording without changing a rule.
 
-Each feature specification MUST be checked against the business
-principles before it is accepted. The review MUST confirm the
-audience, the expected behaviour, the failure paths and user-facing
-error messages, and the explicit out-of-scope statement.
+Compliance review:
 
-Each design and implementation change MUST be checked against
-Principles VIII through XIII before it is accepted. The same review
-MUST confirm that the domain invariants in Principles I through IV,
-XIV, and XV still hold.
+- A feature specification MUST be checked against Principles B1 through
+  B7 and Q1 before it is accepted.
+- A design and an implementation MUST be checked against Principles A1
+  through A8 and E1 through E6 before they are accepted.
+- A task list and a completion claim MUST be checked against Principles
+  E5 and Q1 through Q6.
 
-Each feature task list and each completion claim MUST be checked
-against Principles XVI through XX. The review MUST confirm the
-acceptance-test tasks and their order, the test-driven sequence, the
-pytest tasks, the branch-coverage evidence, the curl tasks and their
-results, and that completion is not claimed from code or a green test
-run alone.
-
-**Version**: 1.4.0 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-14
+**Version**: 2.0.4 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-15
