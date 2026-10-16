@@ -31,6 +31,6 @@
 
 ## Notes
 
-- Re-specified in place on 2026-10-15 against Constitution 2.0.4. Accepted messages and outcomes were kept. B1–B7 define a registered student and an existing course. Incomplete student and course records use the messages already specified for "not registered" and "course does not exist."
-- Incomplete: the edge case and FR-014 still contain `[NEEDS CLARIFICATION: which user-facing message is shown when more than one refusal applies at once, for example a grade attempt that also names another student?]`. Until that choice is made, FR-014 has no single expected message, so the two unchecked requirement items stay open.
-- Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.
+- Aligned in place on 2026-10-16. Accepted business rules were kept. A combined-message rule added earlier the same day was withdrawn because it changed accepted behavior without approval.
+- RF-001 records a conflict between accepted FR-014 and constitution principle A10. It does not change FR-014.
+- No other feature specification exists. No [NEEDS CLARIFICATION] markers remain in the requirements.

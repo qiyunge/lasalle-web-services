@@ -4,17 +4,21 @@
 
 **Created**: 2026-10-14
 
-**Updated**: 2026-10-15
+**Updated**: 2026-10-16
 
 **Status**: Draft
 
-**Input**: User description: "Re-specify the existing Student Self-Enrollment feature for validation against Constitution v2.0.4. This is a brownfield feature, not a new feature request. Derive the specification from the accepted business requirements and constitutional invariants B1–B7. The accepted behavior remains: a student browses available courses and enrolls in a course without administrative intervention. The enrollment belongs to the acting student. A student must not enroll another student or assign, change, or remove a grade. Every existing course is available for browsing and self-enrollment, regardless of the student's programme. Enrollment periods, course capacity, prerequisites, and course availability statuses are out of scope. A student cannot enroll in a nonexistent course. Duplicate enrollment remains prohibited."
+**Input**: User description: "Align the existing Student Self-Enrollment specification with the current constitution. This is not a new feature. The existing specification remains the source of this feature's business rules. The constitution does not adopt those rules. Accepted behavior is unchanged: a student browses available courses and enrolls without administrative intervention. The enrollment belongs to the acting student. A student must not enroll another student or assign, change, or remove a grade. Every existing course is available for browsing and self-enrollment, regardless of the student's programme. Enrollment periods, course capacity, prerequisites, and course availability statuses are out of scope. A student cannot enroll in a nonexistent course. Duplicate enrollment remains prohibited."
+
+## Audience
+
+Registered students. A registered student browses courses and enrolls. College staff are not actors in this feature. Only authorized staff may assign, change, or remove a grade, and this feature does not give anyone that action.
 
 ## Clarifications
 
 ### Session 2026-10-15
 
-- Q: When one enrollment attempt breaks more than one rule, which refusal should the student see? → A: Stop at the first match: grade attempt; then enrolling someone else; then not a registered student; then the course does not exist; then already enrolled.
+- Q: When one enrollment attempt breaks more than one rule, which refusal should the student see? → A: Stop at the first match: grade attempt; then enrolling someone else; then not a registered student; then the course does not exist; then already enrolled. This remains the accepted rule. A conflict with the constitution is recorded under Review flags and is not resolved here.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -118,7 +122,14 @@ A registered student reviews the courses the college offers so they can choose o
 - Withdrawing from a course, or otherwise changing or removing an existing inscription, except that a refused duplicate leaves the existing inscription unchanged.
 - Assigning, changing, removing, or displaying grades. Grade management remains reserved for authorized college staff.
 - An administrator enrolling a student, approving an enrollment, or acting on behalf of a student.
-- Any enrollment business rule not already stated in this specification or in constitutional invariants B1 through B7.
+- Any enrollment business rule not already stated in this specification.
+
+## Review flags
+
+These items are not resolved. They do not change the accepted requirements above.
+
+- **RF-001**: Accepted FR-014 shows one message, the first match in a fixed order. Constitution principle A10 says independent validation failures are returned together, and a check that depends on another input runs only when that input is valid. Replacing FR-014 would change the message a student sees. No replacement is made here.
+- **RF-002**: No other feature specification exists in this project, so no conflict with another accepted specification was found.
 
 ## Assumptions
 
@@ -128,5 +139,7 @@ A registered student reviews the courses the college offers so they can choose o
 - A course does not need to be linked to a programme to be browsed or enrolled in.
 - An inscription created here has no grade.
 - A grade that staff have already recorded on an existing inscription is left as it is when a duplicate enrollment is refused.
-- The quoted sentences in this specification are the exact user-facing messages for the named outcomes. When one attempt breaks more than one rule, FR-014 chooses the message.
+- The quoted sentences in this specification are the exact user-facing messages for the named outcomes. When one attempt breaks more than one rule, FR-014 chooses the one message.
+- This specification is the source of the business rules for student self-enrollment. The constitution does not adopt those rules. Rules already stated here remain in force.
+- How a refusal is carried or checked inside the service is not a business rule. This specification states the messages and when each message applies.
 - Student email uniqueness compares students as the college stores them. This feature does not define a new comparison rule and does not repair existing duplicate emails.
