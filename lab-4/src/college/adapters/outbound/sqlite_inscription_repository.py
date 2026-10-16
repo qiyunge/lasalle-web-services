@@ -2,15 +2,16 @@
 
 import sqlite3
 
-from college.application.ports import PersistenceConflict
+from college.application.ports import Missing, PersistenceConflict
 from college.domain.inscription import Inscription
+from college.domain.result import Failure
 
 
 class SqliteInscriptionRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
 
-    def find(self, student_id: int, course_id: int) -> Inscription | None:
+    def find(self, student_id: int, course_id: int):
         row = self.connection.execute(
             """
             SELECT id, student_id, course_id, note
@@ -20,8 +21,10 @@ class SqliteInscriptionRepository:
             (student_id, course_id),
         ).fetchone()
         if row is None:
-            return None
-        return Inscription(row["id"], row["student_id"], row["course_id"], row["note"])
+            return Failure(Missing())
+        return Inscription.create(
+            row["id"], row["student_id"], row["course_id"], row["note"]
+        )
 
     def add(self, student_id: int, course_id: int) -> Inscription:
         try:

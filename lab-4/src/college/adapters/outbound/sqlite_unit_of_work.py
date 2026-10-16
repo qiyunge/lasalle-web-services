@@ -40,13 +40,18 @@ def initialize_schema(connection: sqlite3.Connection) -> None:
 class SqliteUnitOfWork:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
+        self._rollback = False
+
+    def rollback(self) -> None:
+        self._rollback = True
 
     def __enter__(self) -> "SqliteUnitOfWork":
+        self._rollback = False
         self.connection.execute("BEGIN IMMEDIATE")
         return self
 
     def __exit__(self, exc_type, exc, tb) -> bool:
-        if exc_type is None:
+        if exc_type is None and not self._rollback:
             self.connection.commit()
         else:
             self.connection.rollback()

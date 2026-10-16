@@ -3,11 +3,12 @@
 import pytest
 
 from college.application.enroll_student import enroll
-from college.application.ports import PersistenceConflict
-from college.domain.course import Course
-from college.domain.inscription import Inscription
+from college.application.ports import Missing, PersistenceConflict
+from college.domain.course import Course, InvalidCourse
+from college.domain.inscription import Inscription, InvalidInscription
 from college.domain.programme import Programme
-from college.domain.student import Student
+from college.domain.result import Failure, Success
+from college.domain.student import InvalidStudent, Student
 
 
 class NullUnitOfWork:
@@ -31,7 +32,10 @@ class Programmes:
         self.store = store
 
     def get(self, programme_id):
-        return self.store.programmes.get(programme_id)
+        found = self.store.programmes.get(programme_id)
+        if found is None:
+            return Failure(Missing())
+        return Success(found)
 
 
 class Students:
@@ -39,7 +43,12 @@ class Students:
         self.store = store
 
     def get(self, student_id):
-        return self.store.students.get(student_id)
+        if student_id not in self.store.students:
+            return Failure(Missing())
+        found = self.store.students[student_id]
+        if isinstance(found, Failure):
+            return found
+        return Success(found)
 
 
 class Courses:
@@ -47,7 +56,12 @@ class Courses:
         self.store = store
 
     def get(self, course_id):
-        return self.store.courses.get(course_id)
+        if course_id not in self.store.courses:
+            return Failure(Missing())
+        found = self.store.courses[course_id]
+        if isinstance(found, Failure):
+            return found
+        return Success(found)
 
     def list_all(self):
         return list(self.store.courses.values())
@@ -63,8 +77,8 @@ class Inscriptions:
                 inscription.student_id == student_id
                 and inscription.course_id == course_id
             ):
-                return inscription
-        return None
+                return Success(inscription)
+        return Failure(Missing())
 
     def add(self, student_id, course_id):
         created = Inscription(
@@ -79,7 +93,7 @@ class Inscriptions:
 
 class ConflictInscriptions:
     def find(self, student_id, course_id):
-        return None
+        return Failure(Missing())
 
     def add(self, student_id, course_id):
         raise PersistenceConflict
@@ -177,17 +191,12 @@ def test_missing_student_is_not_registered():
 
 
 @pytest.mark.parametrize(
-    "student",
-    [
-        Student(1, "", "ada@college.test", 1),
-        Student(1, "Ada", "", 1),
-        Student(1, None, "ada@college.test", 1),
-        Student(1, "Ada", None, 1),
-    ],
+    "stored",
+    [Failure(InvalidStudent(1))] * 4,
 )
-def test_incomplete_student_is_not_registered(student):
+def test_incomplete_student_is_not_registered(stored):
     store = _store()
-    store.students[1] = student
+    store.students[1] = stored
     result = _enroll(store)
     assert result.message == "Only a registered student can enroll in a course."
     assert store.inscriptions == []
@@ -202,17 +211,12 @@ def test_missing_programme_is_not_registered():
 
 
 @pytest.mark.parametrize(
-    "course",
-    [
-        Course(10, "", "Introduction"),
-        Course(10, "CS101", ""),
-        Course(10, None, "Introduction"),
-        Course(10, "CS101", None),
-    ],
+    "stored",
+    [Failure(InvalidCourse(10))] * 4,
 )
-def test_incomplete_course_does_not_exist(course):
+def test_incomplete_course_does_not_exist(stored):
     store = _store()
-    store.courses[10] = course
+    store.courses[10] = stored
     result = _enroll(store)
     assert result.message == "That course does not exist."
     assert store.inscriptions == []
@@ -243,6 +247,66 @@ def test_grade_attempt_wins_over_enrolling_someone_else():
     store = _store()
     result = _enroll(store, student_id=2, note="A")
     assert result.message == "Students cannot assign, change, or remove a grade."
+    assert store.inscriptions == []
+
+
+def test_grade_attempt_wins_over_an_unregistered_student():
+    store = _store()
+    result = _enroll(store, acting_student_id=9, note="A")
+    assert result.message == "Students cannot assign, change, or remove a grade."
+    assert store.inscriptions == []
+
+
+def test_grade_attempt_wins_over_a_missing_course():
+    store = _store()
+    result = _enroll(store, course_id=99, note="A")
+    assert result.message == "Students cannot assign, change, or remove a grade."
+    assert store.inscriptions == []
+
+
+def test_grade_attempt_wins_over_an_existing_inscription():
+    store = _store()
+    store.inscriptions.append(Inscription(5, 1, 10, "A"))
+    result = _enroll(store, note="A")
+    assert result.message == "Students cannot assign, change, or remove a grade."
+    assert store.inscriptions == [Inscription(5, 1, 10, "A")]
+
+
+def test_enrolling_someone_else_wins_over_an_unregistered_student():
+    store = _store()
+    result = _enroll(store, acting_student_id=9, student_id=2)
+    assert result.message == "You can only enroll yourself."
+    assert store.inscriptions == []
+
+
+def test_enrolling_someone_else_wins_over_a_missing_course():
+    store = _store()
+    result = _enroll(store, course_id=99, student_id=2)
+    assert result.message == "You can only enroll yourself."
+    assert store.inscriptions == []
+
+
+def test_enrolling_someone_else_wins_over_an_existing_inscription():
+    store = _store()
+    store.inscriptions.append(Inscription(5, 1, 10, "A"))
+    result = _enroll(store, student_id=2)
+    assert result.message == "You can only enroll yourself."
+    assert store.inscriptions == [Inscription(5, 1, 10, "A")]
+
+
+def test_unregistered_student_wins_over_a_missing_course():
+    store = _store()
+    result = _enroll(store, acting_student_id=9, course_id=99)
+    assert result.message == "Only a registered student can enroll in a course."
+    assert store.inscriptions == []
+
+
+def test_missing_course_wins_over_an_existing_inscription():
+    store = _store()
+    store.inscriptions.append(Inscription(5, 1, 99, None))
+    result = _enroll(store, course_id=99)
+    assert result.message == "That course does not exist."
+    assert store.inscriptions == [Inscription(5, 1, 99, None)]
 
 
 def test_two_students_can_enroll_in_the_same_course():
@@ -254,24 +318,63 @@ def test_two_students_can_enroll_in_the_same_course():
     assert {item.student_id for item in store.inscriptions} == {1, 2}
 
 
-def test_missing_acting_student_id():
-    result = _enroll(_store(), acting_student_id=None)
-    assert result.message == "acting_student_id is required."
+class InvalidInscriptions:
+    def __init__(self):
+        self.add_called = False
+
+    def find(self, student_id, course_id):
+        return Failure(InvalidInscription(5, student_id, course_id, None))
+
+    def add(self, student_id, course_id):
+        self.add_called = True
+        return None
 
 
-def test_missing_course_id():
-    result = _enroll(_store(), course_id=None)
-    assert result.message == "course_id is required."
+class RecordingUnitOfWork:
+    def __init__(self):
+        self.rolled_back = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def rollback(self):
+        self.rolled_back = True
 
 
-@pytest.mark.parametrize(
-    "overrides",
-    [
-        {"acting_student_id": 1.5},
-        {"course_id": True},
-        {"acting_student_id": "1"},
-    ],
-)
-def test_ids_must_be_integers(overrides):
-    result = _enroll(_store(), **overrides)
-    assert result.message == "acting_student_id and course_id must be integers."
+def test_invalid_stored_inscription_is_an_integrity_failure():
+    store = _store()
+    inscriptions = InvalidInscriptions()
+    work = RecordingUnitOfWork()
+    result = enroll(
+        1,
+        10,
+        student_id=enroll.ABSENT,
+        note=enroll.ABSENT,
+        programmes=Programmes(store),
+        students=Students(store),
+        courses=Courses(store),
+        inscriptions=inscriptions,
+        unit_of_work=work,
+    )
+    assert result.outcome == "integrity"
+    assert result.message == "Stored inscription data is invalid."
+    assert result.inscription is None
+    assert inscriptions.add_called is False
+    assert work.rolled_back is True
+    grade = enroll(
+        1,
+        10,
+        student_id=enroll.ABSENT,
+        note="A",
+        programmes=Programmes(store),
+        students=Students(store),
+        courses=Courses(store),
+        inscriptions=inscriptions,
+        unit_of_work=RecordingUnitOfWork(),
+    )
+    assert grade.message == "Students cannot assign, change, or remove a grade."
+
+

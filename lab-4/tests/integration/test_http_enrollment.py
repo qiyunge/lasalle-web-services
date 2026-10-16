@@ -1,9 +1,18 @@
 """HTTP contract tests for POST /inscriptions."""
 
 import sqlite3
+from contextlib import contextmanager
 
+from flask import Flask
+
+from college.adapters.inbound.http import create_blueprint
 from college.app import create_app
 from college.adapters.outbound.sqlite_unit_of_work import initialize_schema
+from college.domain.course import Course
+from college.domain.inscription import InvalidInscription
+from college.domain.programme import Programme
+from college.domain.result import Failure, Success
+from college.domain.student import Student
 
 
 def _database(tmp_path):
@@ -153,6 +162,77 @@ def test_required_fields(tmp_path):
     assert bad_type.get_json() == {
         "message": "acting_student_id and course_id must be integers."
     }
+    fraction = client.post(
+        "/inscriptions",
+        json={"acting_student_id": 1.5, "course_id": 10},
+    )
+    assert fraction.status_code == 400
+    assert fraction.get_json() == {
+        "message": "acting_student_id and course_id must be integers."
+    }
+    boolean_course = client.post(
+        "/inscriptions",
+        json={"acting_student_id": 1, "course_id": True},
+    )
+    assert boolean_course.status_code == 400
+    assert boolean_course.get_json() == {
+        "message": "acting_student_id and course_id must be integers."
+    }
+
+
+def test_invalid_stored_inscription_is_internal_failure():
+    class Found:
+        def find(self, student_id, course_id):
+            return Failure(InvalidInscription(1, student_id, course_id, None))
+
+        def add(self, student_id, course_id):
+            raise AssertionError("add must not run")
+
+    class Students:
+        def get(self, student_id):
+            return Success(Student(1, "Ada", "ada@college.test", 1))
+
+    class Courses:
+        def get(self, course_id):
+            return Success(Course(10, "CS101", "Introduction"))
+
+    class Programmes:
+        def get(self, programme_id):
+            return Success(Programme(1))
+
+    class Work:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def rollback(self):
+            return None
+
+    @contextmanager
+    def enrollment_ports():
+        yield {
+            "programmes": Programmes(),
+            "students": Students(),
+            "courses": Courses(),
+            "inscriptions": Found(),
+            "unit_of_work": Work(),
+        }
+
+    @contextmanager
+    def course_port():
+        yield None
+
+    application = Flask(__name__)
+    application.register_blueprint(create_blueprint(enrollment_ports, course_port))
+    response = application.test_client().post(
+        "/inscriptions",
+        json={"acting_student_id": 1, "course_id": 10},
+    )
+    assert response.status_code == 500
+    assert response.get_json() == {"message": "Stored inscription data is invalid."}
+    assert "inscription" not in response.get_json()
 
 
 def test_body_that_is_not_a_json_object(tmp_path):

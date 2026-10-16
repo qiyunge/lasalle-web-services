@@ -2,6 +2,15 @@
 
 from dataclasses import dataclass
 
+from college.domain.result import ConstructionError, Failure, Success, is_integer, is_text
+
+
+@dataclass(frozen=True)
+class InvalidStudent:
+    """A stored student row that cannot be constructed. Carries no sentence."""
+
+    id: object
+
 
 @dataclass(frozen=True)
 class Student:
@@ -20,9 +29,16 @@ class Student:
     email: str
     programme_id: int
 
-    def has_identity(self) -> bool:
-        return _present(self.name) and _present(self.email)
+    def __post_init__(self) -> None:
+        if not _valid(self.id, self.name, self.email, self.programme_id):
+            raise ConstructionError
+
+    @classmethod
+    def create(cls, id, name, email, programme_id):
+        if not _valid(id, name, email, programme_id):
+            return Failure(InvalidStudent(id))
+        return Success(cls(id, name, email, programme_id))
 
 
-def _present(value) -> bool:
-    return isinstance(value, str) and value != ""
+def _valid(id, name, email, programme_id) -> bool:
+    return is_integer(id) and is_integer(programme_id) and is_text(name) and is_text(email)
