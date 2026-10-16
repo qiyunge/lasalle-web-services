@@ -1,15 +1,16 @@
 # Quickstart: Student Self-Enrollment
 
-Validation guide for browse and self-enrollment. Request and response
-details are in
+Validation guide. Request and response details are in
 [contracts/student-self-enrollment.md](contracts/student-self-enrollment.md).
 Stored fields are in [data-model.md](data-model.md).
+
+This guide does not implement the feature. It checks the running
+service and the automated tests.
 
 ## Prerequisites
 
 - Python 3.12
 - Working directory: `lab-4/`
-- Network access only for the first install
 
 ## Setup
 
@@ -19,8 +20,7 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-On this machine `python3.12 -m venv` can fail because `ensurepip` is
-unavailable. Use the local installer instead:
+If `python3.12 -m venv` fails because `ensurepip` is unavailable:
 
 ```bash
 uv venv --python 3.12 .venv
@@ -28,147 +28,75 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
 
-`uv` on this workstation is `/home/devuser/.local/bin/uv` when it is not
-on `PATH`. `pyproject.toml` depends on Flask 3.1.3. The `dev` extra
-installs pytest and pytest-cov. SQLite comes with Python 3.12. No
-linter or type checker is installed.
+Flask 3.1.3 is the runtime dependency. pytest and pytest-cov are the
+dev extra. The approved plan also adds Ruff and Pyright to that extra.
+Those two packages are not in `pyproject.toml` until that plan is
+approved, so do not install them before then. SQLite comes with Python.
 
-## Automated validation
+## Automated tests
 
 ```bash
 python -m pytest -v --cov=college --cov-branch --cov-report=term-missing
 ```
 
-The configured `addopts` already include branch coverage of `college`
-and fail under 100. This command is a planned Q4 gate. A file total
-does not prove a new branch ran, and a green run does not by itself
-set the coverage baseline.
+The configured gate fails when branch coverage of `college` is under
+100. For a behavior change, write the failing test first and confirm
+it fails for the specified reason before changing the service.
 
-A planning review on 2026-10-15 executed this command. It reported 46
-passed, 30 branches, and 0 missing, and it warned that module `college`
-was previously imported and not measured. That run is not the Q4
-baseline. The curl section below was not re-run. `evidence/curl.txt`
-is an earlier log.
-
-Expected: every test passes, and the branch report shows no missing
-business branch. The suite uses its own database files and does not
-read Lab 3.
-
-| Check | Expected |
-| --- | --- |
-| Registered student enrolls in an existing course | One inscription for that student and course, no note, message "You are enrolled in this course." |
-| Student's programme is unrelated to the course | Inscription is still created |
-| Same student enrolls in a second course | Second inscription; first inscription unchanged |
-| Two students enroll in the same course | Both inscriptions exist |
-| No existing courses | `GET /courses` returns `200` and `"courses": []` |
-| Several existing courses, including shared names, a course outside the student's programme, and a course already enrolled | `GET /courses` returns each course id, course code, and name |
-| Course is missing or incomplete | No write; "That course does not exist." |
-| Incomplete course stored beside a valid course | `GET /courses` includes only the valid course. The application course batch also retains an invalid-record diagnostic. The HTTP body has no diagnostic field. |
-| Same student and course again, including when that inscription already has a note | No second inscription; existing note unchanged; "You are already enrolled in this course." |
-| Person is missing, or lacks a name, an email address, or a programme | No write; "Only a registered student can enroll in a course." |
-| Body names a different `student_id` | No write; "You can only enroll yourself." |
-| Body includes `note`, including null | No write; "Students cannot assign, change, or remove a grade." |
-| One attempt matches more than one business rule | The earliest FR-014 message; no write |
-| Two overlapping enrollments for the same student and course | One inscription; the loser receives the already-enrolled outcome |
-| `find` returns an invalid inscription | Outcome `integrity`, HTTP 500, message "Stored inscription data is invalid.", transaction rolled back, no write, and no FR-014 sentence. The development seed has no such row, so this check is an automated test rather than a curl against the seed. |
-| Missing or non-integer `acting_student_id` or `course_id` | The existing transport sentence; no write |
-
-The current browse tests also expect `course_code` order. That order is
-the existing presentation. The specification requires the set.
-
-## Architecture boundaries
-
-From `lab-4/`:
+After Ruff and Pyright are installed from the approved plan:
 
 ```bash
-grep -R -n -E 'flask|sqlite3' src/college/domain src/college/application
-grep -R -n -E 'adapters.outbound|sqlite_' src/college/adapters/inbound
-grep -R -n -E 'Sqlite[A-Za-z]+\(' src/college --include='*.py'
+ruff check src/college
+pyright
 ```
 
-Expected:
+Ruff uses rules `E4`, `E7`, `E9`, and `F`. Pyright uses basic mode.
+Both are limited to `src/college`. A genuine error is fixed. It is not
+suppressed to force a pass. These commands do not replace the pytest
+coverage gate.
 
-- The first command prints nothing. Domain and application do not
-  import Flask or `sqlite3`.
-- The second command prints nothing. The HTTP adapter does not import
-  an outbound adapter.
-- The third command finds adapter construction only in `src/college/app.py`.
+Unit tests cover domain construction and the enrollment use case,
+including the FR-014 order. Integration tests cover HTTP responses and
+the SQLite uniqueness conflict. The Flask test client is not a
+substitute for the curl checks below.
 
-## Static checks
+## Running service
 
-No lint command and no type-check command are configured. There is
-nothing to run for that gate.
+Start the application from `lab-4/` with its existing entry point and
+a database path that is empty or already seeded with a programme
+that has a nonempty name, a registered student, and a course. Then:
 
-## Running HTTP check
+1. `GET /courses` returns `200` and every existing course, each with
+   an identifier, a course code, and a name.
+2. `POST /inscriptions` with that student's identifier and an existing
+   course returns `201`, the enrolled sentence, and an inscription
+   whose note is null.
+3. Repeat that post. The response is `409` and "You are already
+   enrolled in this course." The stored inscription is unchanged.
+4. Post a course identifier that does not exist. The response is
+   `404` and "That course does not exist."
+5. Post a `note` field. The response is `400` and "Students cannot
+   assign, change, or remove a grade." Nothing is written.
+6. Post a `student_id` that differs from `acting_student_id`. The
+   response is `400` and "You can only enroll yourself." The request
+   does not enroll that other student.
+7. Post as an acting student whose programme has no nonempty name.
+   The response is `400` and "Only a registered student can enroll in
+   a course." Nothing is written.
 
-Use a fresh database so earlier enrollments do not change the result.
+A request that matches more than one business rule expects only the
+FR-014 sentence. RF-001 is resolved: business refusals stay on that
+first match.
 
-```bash
-rm -f /tmp/college-quickstart.sqlite
-python -c "from college.app import seed_development; seed_development('/tmp/college-quickstart.sqlite')"
-flask --app 'college.app:create_app("/tmp/college-quickstart.sqlite")' run --host 127.0.0.1 --port 5000
-```
+A request with more than one identifier failure expects HTTP 400 and
+an `errors` array of stable codes and field names, as in
+[contracts/student-self-enrollment.md](contracts/student-self-enrollment.md).
+UD-001 is resolved. One identifier failure still expects the single
+`message` sentence.
 
-The seed loads programme `1`, students `1` and `2`, and courses `1`
-(`CS101`) and `2` (`CS102`). In another shell:
-
-```bash
-curl -sS -D - http://127.0.0.1:5000/courses -o /tmp/courses.json
-curl -sS -D - -X POST http://127.0.0.1:5000/inscriptions \
-  -H 'Content-Type: application/json' \
-  -d '{"acting_student_id": 1, "course_id": 1}'
-curl -sS -D - -X POST http://127.0.0.1:5000/inscriptions \
-  -H 'Content-Type: application/json' \
-  -d '{"acting_student_id": 1, "course_id": 1}'
-curl -sS -D - -X POST http://127.0.0.1:5000/inscriptions \
-  -H 'Content-Type: application/json' \
-  -d '{"acting_student_id": 2, "course_id": 1}'
-curl -sS -D - -X POST http://127.0.0.1:5000/inscriptions \
-  -H 'Content-Type: application/json' \
-  -d '{"acting_student_id": 1, "course_id": 99}'
-curl -sS -D - -X POST http://127.0.0.1:5000/inscriptions \
-  -H 'Content-Type: application/json' \
-  -d '{"acting_student_id": 9, "course_id": 1}'
-curl -sS -D - -X POST http://127.0.0.1:5000/inscriptions \
-  -H 'Content-Type: application/json' \
-  -d '{"acting_student_id": 1, "course_id": 2, "student_id": 2}'
-curl -sS -D - -X POST http://127.0.0.1:5000/inscriptions \
-  -H 'Content-Type: application/json' \
-  -d '{"acting_student_id": 1, "course_id": 2, "note": null}'
-curl -sS -D - -X POST http://127.0.0.1:5000/inscriptions \
-  -H 'Content-Type: application/json' \
-  -d '{"acting_student_id": 1, "course_id": 1, "note": null, "student_id": 2}'
-curl -sS -D - -X POST http://127.0.0.1:5000/inscriptions \
-  -H 'Content-Type: application/json' \
-  -d '{"course_id": 1}'
-curl -sS -D - -X POST http://127.0.0.1:5000/inscriptions \
-  -H 'Content-Type: application/json' \
-  -d '{"acting_student_id": 1}'
-curl -sS -D - -X POST http://127.0.0.1:5000/inscriptions \
-  -H 'Content-Type: application/json' \
-  -d '{"acting_student_id": "1", "course_id": 1}'
-sqlite3 /tmp/college-quickstart.sqlite \
-  "SELECT student_id, course_id, note FROM inscription ORDER BY student_id, course_id;"
-```
-
-Expected, in order:
-
-1. `200` and a `courses` array containing CS101 and CS102, each with
-   `id`, `course_code`, and `name`.
-2. `201`, "You are enrolled in this course.", inscription `student_id`
-   1, `course_id` 1, `note` null.
-3. `409`, "You are already enrolled in this course."
-4. `201` for student 2 in course 1.
-5. `404`, "That course does not exist."
-6. `400`, "Only a registered student can enroll in a course."
-7. `400`, "You can only enroll yourself."
-8. `400`, "Students cannot assign, change, or remove a grade."
-9. `400`, the grade sentence again, because a grade attempt also names
-   another student and an existing inscription.
-10. `400`, "acting_student_id is required."
-11. `400`, "course_id is required."
-12. `400`, "acting_student_id and course_id must be integers."
-13. Stored rows `(1, 1, NULL)` and `(2, 1, NULL)` only.
-
-Stop the Flask process when the curls finish. The test client does not
-replace this run.
+`evidence/coverage.txt` and `evidence/curl.txt` record an earlier run
+of the current service. They show single-outcome behavior and 100%
+branch coverage of the current package. They are not evidence of a
+later boundary change. After any code change, record a new pytest
+coverage summary and the curl commands with their status codes and
+bodies before calling the feature complete.

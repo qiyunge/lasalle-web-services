@@ -1,20 +1,16 @@
 <!--
 Sync Impact Report
-- Version change: 5.1.0 → 6.0.0
-- Bump: MAJOR. The application input contract may contain unvalidated
-  primitive values. A validated command must use domain types.
-  Application coordinates validation before domain behavior. Domain
-  still rejects an invalid domain object. The inbound adapter
-  translates protocol and does not copy a domain validation rule.
+- Version change: 6.0.0 → 6.0.1
+- Bump: PATCH. A10 clarifies that accumulation applies to independent
+  input-validation failures. A business refusal stays in the accepted
+  feature specification and is not accumulated under A10.
 - Modified principles:
-  - A4. Inbound Boundary → A4. Inbound Boundary
-  - A6. Boundary Type Ownership → A6. Boundary Type Ownership
-  - A9. Domain Types and Value Objects → A9. Domain Types and Value Objects
   - A10. Core Boundary Validation → A10. Core Boundary Validation
-- Added sections:
-  - Vocabulary: application input contract, validated command
-- Removed sections:
-  - Vocabulary: core command
+- Added sections: none
+- Removed sections: none
+- Checked and unchanged: A4, A6, and A9 already keep unvalidated facts
+  on the application input contract and require validated domain types
+  for domain behavior.
 - Follow-up TODOs: none
 -->
 
@@ -223,6 +219,11 @@ together as a structured, non-empty collection of typed validation
 errors with stable error codes. The core MUST NOT fail fast on the
 first of those independent failures.
 
+This accumulation applies to independent input-validation failures. A
+business refusal is governed by the accepted feature specification. It
+is not an input-validation failure, and it MUST NOT be accumulated
+under this principle.
+
 A validation that depends on another input MUST run only when that
 prerequisite input is valid.
 
@@ -235,8 +236,10 @@ values.
 
 Rationale: Application coordinates validation. Domain owns the
 invariants. The adapter owns protocol translation. A caller can correct
-every independent mistake from one response. An invalid domain object
-is still not created.
+every independent input mistake from one response. An invalid domain
+object is still not created. A business refusal keeps the priority the
+feature specification states. This principle does not replace that
+priority.
 
 ### A11. Package Organization
 
@@ -627,4 +630,4 @@ Compliance review:
 - A task list and a completion claim MUST be checked against Principles
   E5 and Q1 through Q6.
 
-**Version**: 6.0.0 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-16
+**Version**: 6.0.1 | **Ratified**: 2026-10-14 | **Last Amended**: 2026-10-16
