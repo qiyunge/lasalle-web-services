@@ -2,38 +2,43 @@
 
 from dataclasses import dataclass
 
-from college.domain.result import ConstructionError, Failure, Success, is_integer, is_text
+from college.domain.identifiers import CourseId
+from college.domain.result import ConstructionError, Failure, Success
+from college.domain.text import is_present
 
 
 @dataclass(frozen=True)
 class InvalidCourse:
-    """A stored course row that cannot be constructed. Carries no sentence."""
+    """A stored course that cannot be constructed. id is the stored value."""
 
     id: object
 
 
 @dataclass(frozen=True)
 class Course:
-    """id is required. Identifier. The inscription references this identifier.
+    """id is required. course_code is required, present, and unique.
 
-    course_code is required. Must be present. Unique among courses.
-    name is required. Must be present. Not required to be unique.
+    name is required and present. Names may repeat. Code uniqueness spans
+    courses and is guaranteed by storage. This feature does not create
+    courses, so the only factory rebuilds a stored one.
     """
 
-    id: int
+    id: CourseId
     course_code: str
     name: str
 
     def __post_init__(self) -> None:
-        if not _valid(self.id, self.course_code, self.name):
+        if not (
+            isinstance(self.id, CourseId)
+            and is_present(self.course_code)
+            and is_present(self.name)
+        ):
             raise ConstructionError
 
     @classmethod
-    def create(cls, id, course_code, name):
-        if not _valid(id, course_code, name):
-            return Failure(InvalidCourse(id))
+    def reconstitute(
+        cls, id: CourseId, course_code: object, name: object
+    ) -> Success["Course"] | Failure[InvalidCourse]:
+        if not (is_present(course_code) and is_present(name)):
+            return Failure(InvalidCourse(id.value))
         return Success(cls(id, course_code, name))
-
-
-def _valid(id, course_code, name) -> bool:
-    return is_integer(id) and is_text(course_code) and is_text(name)

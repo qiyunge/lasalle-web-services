@@ -1,6 +1,8 @@
 """HTTP contract tests for POST /inscriptions."""
 
 import sqlite3
+
+import pytest
 from contextlib import contextmanager
 
 from flask import Flask
@@ -8,7 +10,10 @@ from flask import Flask
 from college.adapters.inbound.http import create_blueprint
 from college.app import create_app
 from college.adapters.outbound.sqlite_unit_of_work import initialize_schema
+from college.application.ports import EnrollmentPorts
 from college.domain.course import Course
+from college.domain.email import Email
+from college.domain.identifiers import CourseId, ProgrammeId, StudentId
 from college.domain.inscription import InvalidInscription
 from college.domain.programme import Programme
 from college.domain.result import Failure, Success
@@ -19,7 +24,9 @@ def _database(tmp_path):
     path = tmp_path / "college.sqlite"
     connection = sqlite3.connect(path)
     initialize_schema(connection)
-    connection.execute("INSERT INTO programme (id) VALUES (1)")
+    connection.execute(
+        "INSERT INTO programme (id, name) VALUES (1, 'Computer Science')"
+    )
     connection.execute(
         "INSERT INTO student (id, name, email, programme_id) VALUES (1, 'Ada', 'ada@college.test', 1)"
     )
@@ -129,15 +136,49 @@ def test_enroll_other_student(tmp_path):
         json={"acting_student_id": 1, "course_id": 10, "student_id": 2},
     )
     assert response.status_code == 400
-    assert response.get_json() == {"message": "You can only enroll yourself."}
+    assert response.get_json() == {
+        "errors": [{"code": "target_student_not_accepted", "field": "student_id"}]
+    }
+    assert "message" not in response.get_json()
     assert _rows(path) == []
 
 
-def test_grade_attempt(tmp_path):
+def test_equal_student_id_is_not_accepted(tmp_path):
     path = _database(tmp_path)
     response = _client(path).post(
         "/inscriptions",
-        json={"acting_student_id": 1, "course_id": 10, "note": None},
+        json={"acting_student_id": 1, "course_id": 10, "student_id": 1},
+    )
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "errors": [{"code": "target_student_not_accepted", "field": "student_id"}]
+    }
+    assert _rows(path) == []
+
+
+def test_programme_without_a_nonempty_name(tmp_path):
+    path = _database(tmp_path)
+    connection = sqlite3.connect(path)
+    connection.execute("UPDATE programme SET name = '' WHERE id = 1")
+    connection.commit()
+    connection.close()
+    response = _client(path).post(
+        "/inscriptions",
+        json={"acting_student_id": 1, "course_id": 10},
+    )
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "message": "Only a registered student can enroll in a course."
+    }
+    assert _rows(path) == []
+
+
+@pytest.mark.parametrize("note", [None, "", "A"])
+def test_grade_attempt(tmp_path, note):
+    path = _database(tmp_path)
+    response = _client(path).post(
+        "/inscriptions",
+        json={"acting_student_id": 1, "course_id": 10, "note": note},
     )
     assert response.status_code == 400
     assert response.get_json() == {
@@ -190,15 +231,17 @@ def test_invalid_stored_inscription_is_internal_failure():
 
     class Students:
         def get(self, student_id):
-            return Success(Student(1, "Ada", "ada@college.test", 1))
+            return Success(
+                Student(StudentId(1), "Ada", Email("ada@college.test"), ProgrammeId(1))
+            )
 
     class Courses:
         def get(self, course_id):
-            return Success(Course(10, "CS101", "Introduction"))
+            return Success(Course(CourseId(10), "CS101", "Introduction"))
 
     class Programmes:
         def get(self, programme_id):
-            return Success(Programme(1))
+            return Success(Programme(ProgrammeId(1), "Computer Science"))
 
     class Work:
         def __enter__(self):
@@ -212,13 +255,13 @@ def test_invalid_stored_inscription_is_internal_failure():
 
     @contextmanager
     def enrollment_ports():
-        yield {
-            "programmes": Programmes(),
-            "students": Students(),
-            "courses": Courses(),
-            "inscriptions": Found(),
-            "unit_of_work": Work(),
-        }
+        yield EnrollmentPorts(
+            programmes=Programmes(),
+            students=Students(),
+            courses=Courses(),
+            inscriptions=Found(),
+            unit_of_work=Work(),
+        )
 
     @contextmanager
     def course_port():
@@ -235,13 +278,50 @@ def test_invalid_stored_inscription_is_internal_failure():
     assert "inscription" not in response.get_json()
 
 
+def test_both_identifiers_missing_is_an_errors_array(tmp_path):
+    response = _client(_database(tmp_path)).post("/inscriptions", json={})
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "errors": [
+            {"code": "acting_student_id_missing", "field": "acting_student_id"},
+            {"code": "course_id_missing", "field": "course_id"},
+        ]
+    }
+
+
+def test_target_student_field_accumulates_with_an_identifier_error(tmp_path):
+    path = _database(tmp_path)
+    response = _client(path).post(
+        "/inscriptions",
+        json={"acting_student_id": 1, "student_id": 1, "note": "A"},
+    )
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "errors": [
+            {"code": "course_id_missing", "field": "course_id"},
+            {"code": "target_student_not_accepted", "field": "student_id"},
+        ]
+    }
+    assert _rows(path) == []
+
+
 def test_body_that_is_not_a_json_object(tmp_path):
     client = _client(_database(tmp_path))
     not_json = client.post(
         "/inscriptions", data="hello", content_type="text/plain"
     )
     assert not_json.status_code == 400
-    assert not_json.get_json() == {"message": "acting_student_id is required."}
+    assert not_json.get_json() == {
+        "errors": [
+            {"code": "acting_student_id_missing", "field": "acting_student_id"},
+            {"code": "course_id_missing", "field": "course_id"},
+        ]
+    }
     a_list = client.post("/inscriptions", json=[1, 10])
     assert a_list.status_code == 400
-    assert a_list.get_json() == {"message": "acting_student_id is required."}
+    assert a_list.get_json() == {
+        "errors": [
+            {"code": "acting_student_id_missing", "field": "acting_student_id"},
+            {"code": "course_id_missing", "field": "course_id"},
+        ]
+    }

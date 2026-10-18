@@ -15,12 +15,16 @@ from college.adapters.outbound.sqlite_unit_of_work import (
     open_connection,
 )
 from college.application.ports import PersistenceConflict
+from college.domain.identifiers import CourseId, StudentId
+from college.domain.inscription import NewInscription
 
 
 def _seed(path):
     connection = sqlite3.connect(path)
     initialize_schema(connection)
-    connection.execute("INSERT INTO programme (id) VALUES (1)")
+    connection.execute(
+        "INSERT INTO programme (id, name) VALUES (1, 'Computer Science')"
+    )
     connection.execute(
         "INSERT INTO student (id, name, email, programme_id) VALUES (1, 'Ada', 'ada@college.test', 1)"
     )
@@ -74,7 +78,7 @@ def test_duplicate_insert_is_a_conflict_and_rolls_back(tmp_path):
     repository = SqliteInscriptionRepository(connection)
     with pytest.raises(PersistenceConflict):
         with SqliteUnitOfWork(connection):
-            repository.add(1, 10)
+            repository.add(NewInscription(StudentId(1), CourseId(10)))
     rows = connection.execute(
         "SELECT student_id, course_id, note FROM inscription"
     ).fetchall()

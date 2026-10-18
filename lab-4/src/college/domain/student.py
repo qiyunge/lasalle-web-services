@@ -1,44 +1,51 @@
-"""Student capability. Imports no other capability."""
+"""Student capability. Refers to a programme by identifier only."""
 
 from dataclasses import dataclass
 
-from college.domain.result import ConstructionError, Failure, Success, is_integer, is_text
+from college.domain.email import Email
+from college.domain.identifiers import ProgrammeId, StudentId
+from college.domain.result import ConstructionError, Failure, Success
+from college.domain.text import is_present
 
 
 @dataclass(frozen=True)
 class InvalidStudent:
-    """A stored student row that cannot be constructed. Carries no sentence."""
+    """A stored student that cannot be constructed. id is the stored value."""
 
     id: object
 
 
 @dataclass(frozen=True)
 class Student:
-    """id is required. Identifier.
+    """id is required. name is required and present. email is required.
 
-    name is required. Must be present.
-    email is required. Must be present. Unique among students.
-    programme_id is required. Must reference an existing programme.
+    programme_id must reference an existing programme. Programme existence
+    and email uniqueness span other records, so the self-enrollment
+    service and storage check them, not this entity.
 
-    A text value is present when it is a non-empty string. Uniqueness
-    compares the stored value exactly.
+    This feature does not register students, so the only factory
+    rebuilds a stored one.
     """
 
-    id: int
+    id: StudentId
     name: str
-    email: str
-    programme_id: int
+    email: Email
+    programme_id: ProgrammeId
 
     def __post_init__(self) -> None:
-        if not _valid(self.id, self.name, self.email, self.programme_id):
+        if not (
+            isinstance(self.id, StudentId)
+            and isinstance(self.email, Email)
+            and isinstance(self.programme_id, ProgrammeId)
+            and is_present(self.name)
+        ):
             raise ConstructionError
 
     @classmethod
-    def create(cls, id, name, email, programme_id):
-        if not _valid(id, name, email, programme_id):
-            return Failure(InvalidStudent(id))
+    def reconstitute(
+        cls, id: StudentId, name: object, email: Email, programme_id: ProgrammeId
+    ) -> Success["Student"] | Failure[InvalidStudent]:
+        """Value objects arrive validated. A raw one raises from the constructor."""
+        if not is_present(name):
+            return Failure(InvalidStudent(id.value))
         return Success(cls(id, name, email, programme_id))
-
-
-def _valid(id, name, email, programme_id) -> bool:
-    return is_integer(id) and is_integer(programme_id) and is_text(name) and is_text(email)

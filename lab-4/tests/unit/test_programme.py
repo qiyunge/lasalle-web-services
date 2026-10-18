@@ -1,20 +1,40 @@
-"""Programme construction checks the identifier only."""
+"""Programme construction requires an identifier and a nonempty name."""
 
 import pytest
 
-from college.domain.programme import Programme
-from college.domain.result import ConstructionError
+from college.domain.identifiers import ProgrammeId
+from college.domain.programme import InvalidProgramme, Programme
+from college.domain.result import ConstructionError, Failure, Success
 
 
 def test_valid_programme_is_returned():
-    assert Programme(1).id == 1
+    programme = Programme(ProgrammeId(1), "Computer Science")
+    assert programme.id == ProgrammeId(1)
+    assert programme.name == "Computer Science"
 
 
-def test_invalid_programme_does_not_return():
+@pytest.mark.parametrize("programme_id", [None, True, 1])
+def test_constructor_requires_a_programme_identifier(programme_id):
     with pytest.raises(ConstructionError):
-        Programme(None)
+        Programme(programme_id, "Computer Science")
 
 
-def test_boolean_id_is_not_an_integer():
+def test_empty_name_does_not_return():
     with pytest.raises(ConstructionError):
-        Programme(True)
+        Programme(ProgrammeId(1), "")
+
+
+def test_reconstitute_returns_success_for_a_valid_programme():
+    assert Programme.reconstitute(ProgrammeId(1), "Computer Science") == Success(
+        Programme(ProgrammeId(1), "Computer Science")
+    )
+
+
+@pytest.mark.parametrize("name", ["", None, 1])
+def test_reconstitute_returns_failure_without_raising(name):
+    result = Programme.reconstitute(ProgrammeId(1), name)
+    assert result == Failure(InvalidProgramme(1))
+
+
+def test_programme_has_no_raw_primitive_factory():
+    assert not hasattr(Programme, "create")

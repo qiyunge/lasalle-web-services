@@ -1,5 +1,6 @@
 """Composition root. The only production module that constructs adapters."""
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 
 from flask import Flask
@@ -18,8 +19,21 @@ from college.adapters.outbound.sqlite_unit_of_work import (
     initialize_schema,
     open_connection,
 )
+from college.application.ports import EnrollmentPorts
 
 DEFAULT_DATABASE = "college.sqlite"
+
+DEVELOPMENT_SEED = """
+INSERT OR IGNORE INTO programme (id, name) VALUES (1, 'Computer Science');
+INSERT OR IGNORE INTO student (id, name, email, programme_id)
+    VALUES (1, 'Ada Lovelace', 'ada@college.test', 1);
+INSERT OR IGNORE INTO student (id, name, email, programme_id)
+    VALUES (2, 'Grace Hopper', 'grace@college.test', 1);
+INSERT OR IGNORE INTO course (id, course_code, name)
+    VALUES (1, 'CS101', 'Introduction to Computer Science');
+INSERT OR IGNORE INTO course (id, course_code, name)
+    VALUES (2, 'CS102', 'Introduction to Computer Science');
+"""
 
 
 def create_app(database: str = DEFAULT_DATABASE) -> Flask:
@@ -32,21 +46,21 @@ def create_app(database: str = DEFAULT_DATABASE) -> Flask:
         connection.close()
 
     @contextmanager
-    def enrollment_ports():
+    def enrollment_ports() -> Iterator[EnrollmentPorts]:
         connection = open_connection(database)
         try:
-            yield {
-                "programmes": SqliteProgrammeRepository(connection),
-                "students": SqliteStudentRepository(connection),
-                "courses": SqliteCourseRepository(connection),
-                "inscriptions": SqliteInscriptionRepository(connection),
-                "unit_of_work": SqliteUnitOfWork(connection),
-            }
+            yield EnrollmentPorts(
+                programmes=SqliteProgrammeRepository(connection),
+                students=SqliteStudentRepository(connection),
+                courses=SqliteCourseRepository(connection),
+                inscriptions=SqliteInscriptionRepository(connection),
+                unit_of_work=SqliteUnitOfWork(connection),
+            )
         finally:
             connection.close()
 
     @contextmanager
-    def course_port():
+    def course_port() -> Iterator[SqliteCourseRepository]:
         connection = open_connection(database)
         try:
             yield SqliteCourseRepository(connection)
@@ -62,18 +76,6 @@ def seed_development(database: str = DEFAULT_DATABASE) -> None:
     connection = open_connection(database)
     try:
         initialize_schema(connection)
-        connection.executescript(
-            """
-            INSERT OR IGNORE INTO programme (id) VALUES (1);
-            INSERT OR IGNORE INTO student (id, name, email, programme_id)
-                VALUES (1, 'Ada Lovelace', 'ada@college.test', 1);
-            INSERT OR IGNORE INTO student (id, name, email, programme_id)
-                VALUES (2, 'Grace Hopper', 'grace@college.test', 1);
-            INSERT OR IGNORE INTO course (id, course_code, name)
-                VALUES (1, 'CS101', 'Introduction to Computer Science');
-            INSERT OR IGNORE INTO course (id, course_code, name)
-                VALUES (2, 'CS102', 'Introduction to Computer Science');
-            """
-        )
+        connection.executescript(DEVELOPMENT_SEED)
     finally:
         connection.close()

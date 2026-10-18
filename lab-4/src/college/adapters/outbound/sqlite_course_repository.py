@@ -3,7 +3,8 @@
 import sqlite3
 
 from college.application.ports import CourseList, Missing
-from college.domain.course import Course
+from college.domain.course import Course, InvalidCourse
+from college.domain.identifiers import CourseId
 from college.domain.result import Failure, Success
 
 
@@ -11,23 +12,22 @@ class SqliteCourseRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self.connection = connection
 
-    def get(self, course_id: int):
+    def get(self, course_id: CourseId) -> Success[Course] | Failure[Missing | InvalidCourse]:
         row = self.connection.execute(
-            "SELECT id, course_code, name FROM course WHERE id = ?",
-            (course_id,),
+            "SELECT course_code, name FROM course WHERE id = ?",
+            (course_id.value,),
         ).fetchone()
         if row is None:
             return Failure(Missing())
-        return Course.create(row["id"], row["course_code"], row["name"])
+        return Course.reconstitute(course_id, row["course_code"], row["name"])
 
     def list_all(self) -> CourseList:
-        rows = self.connection.execute(
-            "SELECT id, course_code, name FROM course"
-        ).fetchall()
-        courses = []
-        invalid = []
+        rows = self.connection.execute("SELECT id, course_code, name FROM course").fetchall()
+        courses: list[Course] = []
+        invalid: list[InvalidCourse] = []
         for row in rows:
-            result = Course.create(row["id"], row["course_code"], row["name"])
+            # id is an INTEGER PRIMARY KEY, so SQLite always stores an integer.
+            result = Course.reconstitute(CourseId(row["id"]), row["course_code"], row["name"])
             if isinstance(result, Success):
                 courses.append(result.value)
             else:
