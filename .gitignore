@@ -1,0 +1,10 @@
+.pdf
+*.pdf
+*.json
+evidence/
+
+*.pyc
+.venv
+*.zip
+
+*.db

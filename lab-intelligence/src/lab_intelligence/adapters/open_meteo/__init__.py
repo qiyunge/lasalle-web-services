@@ -1,0 +1,1 @@
+from ._open_meteo_weather_provider import OpenMeteoWeatherProvider
